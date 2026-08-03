@@ -18,12 +18,12 @@ This workload **never creates an App Service plan or a Log Analytics workspace.*
 
 | Resource | Name pattern | Notes |
 | --- | --- | --- |
-| Linux Web App | `app-trip-side-kick-<env>-swedencentral-<id>` | On the shared plan, .NET 10, system-assigned identity, `https_only`, TLS 1.2 min, health check `/api/health/live`, `WEBSITE_RUN_FROM_PACKAGE` disabled so zip-deploy works |
+| Linux Web App | `app-trip-side-kick-<env>-swedencentral-<id>` | On the shared plan, .NET 10, system-assigned identity, `https_only`, TLS 1.2 min, health check `/api/health/live`, `WEBSITE_RUN_FROM_PACKAGE = 1` (seeded here, then owned by the deployment workflow via `lifecycle.ignore_changes`) |
 | Custom hostname bindings + managed certificates | per `custom_domains` entry | Free App Service managed certificates |
 | Cloudflare DNS records | `<host>` CNAME + `asuid.<host>` TXT | See [DNS and Custom Domains](dns-and-custom-domains.md) |
 | Application Insights | `ai-trip-side-kick-<env>-swedencentral` | Workspace-based, pointed at the shared `platform-monitoring` workspace |
 | Key Vault | `kv-<id>` | RBAC authorisation, soft delete + purge protection, public network access on (no VNet in this slice) |
-| Storage account | `sttripsidekick<env><id>` | StorageV2, LRS, TLS 1.2, `allow_nested_items_to_be_public = false`, `shared_access_key_enabled = false`, OAuth-only. Containers `documents` and `dataprotection`, both private |
+| Storage account | `sttripsidekic<env><id>` | StorageV2, LRS, TLS 1.2, `allow_nested_items_to_be_public = false`, `shared_access_key_enabled = false`, OAuth-only. Containers `documents` and `dataprotection`, both private. The workload name is truncated to 11 characters to stay inside the 24-character storage account name limit |
 | SQL logical server | `sql-trip-side-kick-<env>-swedencentral-<id>` | v12, Entra-only auth (`azuread_authentication_only = true`), no SQL logins, `AllowAllAzureServices` firewall rule |
 | SQL database | `sqldb-trip-side-kick-<env>` | See tier below |
 | Diagnostic settings | — | App Service, SQL database, Key Vault and the blob service all ship to the shared workspace |

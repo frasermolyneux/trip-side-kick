@@ -44,6 +44,29 @@ public sealed class HostRoutingTests(TripSideKickApplicationFactory factory)
     }
 
     [Fact]
+    public async Task Site_host_does_not_serve_the_generated_client_bundle()
+    {
+        using var client = factory.CreateClientFor(TripSideKickApplicationFactory.SiteHost);
+
+        // Static files are host-scoped as well as endpoints, so the Vite-generated shell is not
+        // reachable on the brochure surface even by requesting the file directly.
+        using var response = await client.GetAsync(new Uri("/index.html", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Site_host_serves_its_own_static_assets()
+    {
+        using var client = factory.CreateClientFor(TripSideKickApplicationFactory.SiteHost);
+
+        using var response = await client.GetAsync(new Uri("/site.css", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/css", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
     public async Task App_host_serves_the_versioned_api()
     {
         using var client = factory.CreateClientFor(TripSideKickApplicationFactory.AppHost);

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 
+using Microsoft.Extensions.FileProviders;
+
 using MX.Observability.ApplicationInsights.AspNetCore;
 
 using MX.TripSideKick.Application;
@@ -93,20 +95,40 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// Must run first: App Service terminates TLS, so Request.Scheme is only correct after the forwarded
+// headers are applied. HSTS and HTTPS redirection both short-circuit on a non-HTTPS scheme.
+app.UseForwardedHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 
-app.UseForwardedHeaders();
-app.UseHttpsRedirection();
-
-// Deny-by-default host validation and www -> apex canonicalisation.
+// Deny-by-default host validation and www -> apex canonicalisation. Runs before HTTPS redirection so
+// that a redirect Location is never built from an unrecognised Host header.
 app.UseHostRouting();
 
+app.UseHttpsRedirection();
+
 app.UseMiddleware<SecurityHeadersMiddleware>();
-app.UseStaticFiles();
+
+// Static assets are host-scoped as well as endpoints: the generated PWA bundle (index.html, the
+// service worker, the web manifest and the hashed assets) belongs to the application surface only,
+// and the brochure site serves its own asset root. Without this split UseStaticFiles would happily
+// hand /index.html to tripsidekick.net and defeat the MapFallbackToFile host restriction below.
+app.UseWhen(
+    static context => context.GetHostSurface() == HostSurface.App,
+    branch => branch.UseStaticFiles());
+
+app.UseWhen(
+    static context => context.GetHostSurface() == HostSurface.Site,
+    branch => branch.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(
+            Path.Combine(app.Environment.ContentRootPath, SiteAssets.DirectoryName))
+    }));
+
 app.UseCookiePolicy();
 app.UseRouting();
 app.UseRateLimiter();

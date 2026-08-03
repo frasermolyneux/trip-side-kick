@@ -40,6 +40,18 @@ Enforcement is two layers deep, both in `src/MX.TripSideKick.Web/Hosting/`:
    restricted to the app hosts. A brochure URL on the app host therefore falls through to the SPA
    shell, and an API URL on the brochure host returns `404`.
 
+Static files are host-scoped too, because `UseStaticFiles` sits in front of routing and would
+otherwise hand `/index.html` and the whole Vite bundle to the brochure host. The two asset roots are
+physically separate and mounted on their own surfaces with `UseWhen`:
+
+| Surface | Asset root | Contents |
+| --- | --- | --- |
+| `app` | `wwwroot/` (generated, git-ignored) | `index.html`, hashed `assets/**`, `sw.js`, `manifest.webmanifest`, `favicon.svg` |
+| `site` | `SiteAssets/` (source-controlled) | `site.css`, `favicon.svg` |
+
+`SiteAssets/` lives outside `wwwroot` deliberately: Vite owns `wwwroot` and empties it on every
+client build.
+
 Hostnames come from configuration (`HostRouting:SiteHosts`, `HostRouting:AppHosts`) and are
 validated at startup with `ValidateOnStart()`. Terraform writes them as
 `HostRouting__SiteHosts__0` style App Service settings and always appends the App Service default
@@ -113,8 +125,11 @@ Established now, tightened as features arrive:
 * Strict host validation (above) and HTTPS redirection + HSTS outside Development.
 * `SecurityHeadersMiddleware` emits CSP, `X-Content-Type-Options`, `X-Frame-Options`,
   `Referrer-Policy`, `Cross-Origin-Opener-Policy` and `Permissions-Policy`. The CSP already allows
-  the Google Maps and Application Insights ingestion origins the app will need.
+  the Google Maps and Application Insights ingestion origins the app will need; anything configured
+  under `SecurityHeaders:*` is **added to** those defaults rather than replacing them.
 * Same-origin secure cookies (`CookiePolicyOptions`) and antiforgery via the `X-CSRF-TOKEN` header
   with a `__Host-` prefixed cookie.
 * Fixed-window rate limiting (300 requests/minute/IP) as a global limiter.
-* Forwarded headers configured for the App Service reverse proxy.
+* Forwarded headers are applied **first** in the pipeline — App Service terminates TLS, and both
+  HSTS and HTTPS redirection short-circuit unless `Request.Scheme` has already been corrected to
+  `https` from `X-Forwarded-Proto`.

@@ -20,7 +20,7 @@ scaffolding that slice will replace.
 | Cookie | `__Host-` prefixed, `Secure`, `HttpOnly`, `SameSite=Lax`, backed by the blob-persisted Data Protection key ring |
 | Secrets | **None.** Federated credentials / managed identity only, per `standards.oidc-and-secrets` |
 
-Authorisation is per-trip: a trip has an owner and a set of collaborators. `ICurrentUser.UserId` is
+Authorisation is per-trip: a trip has an owner and a set of collaborators. `ICurrentUser.SubjectId` is
 the stable object identifier that trip membership is keyed on. Never key membership on email
 address — it is mutable and it is PII.
 
@@ -35,8 +35,8 @@ an outbound link to the app host, not an auth-protected route. The host-routing 
 
 | Location | Stub |
 | --- | --- |
-| `src/MX.TripSideKick.Application/Abstractions/ICurrentUser.cs` | The abstraction application services already depend on: `UserId`, `IsAuthenticated`. Marked `IDENTITY STUB` |
-| `src/MX.TripSideKick.Web/Hosting/AnonymousCurrentUser.cs` | The only implementation. Always returns `IsAuthenticated = false` and a null `UserId`. Carries the `TODO (identity slice)` marker |
+| `src/MX.TripSideKick.Application/Abstractions/ICurrentUser.cs` | The abstraction application services already depend on: `IsAuthenticated`, `SubjectId`, `DisplayName`. Marked `IDENTITY STUB` |
+| `src/MX.TripSideKick.Web/Hosting/AnonymousCurrentUser.cs` | The only implementation. Always returns `IsAuthenticated = false` with a null `SubjectId` and `DisplayName`. Carries the `TODO (identity slice)` marker |
 | `src/MX.TripSideKick.Web/Program.cs` (~line 39) | `IDENTITY STUB` comment marking exactly where `AddAuthentication().AddMicrosoftIdentityWebApp(...)` and `UseAuthentication()/UseAuthorization()` slot in |
 | `src/MX.TripSideKick.Web/Program.cs` (~line 53) | Cookie policy already configured secure/same-origin so the identity slice does not have to revisit it |
 | `src/MX.TripSideKick.Web/Controllers/V1/StatusController.cs` | Reports the anonymous identity so the split is visible end-to-end; `TODO (identity slice)` |
@@ -70,6 +70,6 @@ slice inherits a correct baseline rather than retrofitting one.
 * **No client secrets, ever.** Federated credentials only.
 * **No tokens in the browser** — no access tokens in `localStorage`, `sessionStorage` or JS-readable
   cookies.
-* **No PII in telemetry** — never log email addresses, display names, trip content or booking
-  references. `ICurrentUser.UserId` (an opaque object id) is the only identity value safe to attach
-  to a trace.
+* **No PII in telemetry** — never log email addresses, trip content or booking references.
+  `ICurrentUser.SubjectId` (an opaque object id) is the only identity value safe to attach to a
+  trace; `ICurrentUser.DisplayName` is PII and must never reach telemetry or logs.

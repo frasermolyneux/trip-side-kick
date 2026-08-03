@@ -1,8 +1,9 @@
 namespace MX.TripSideKick.Web.Hosting;
 
 /// <summary>
-/// Content Security Policy inputs. Defaults are same-origin plus the origins required by
-/// Application Insights browser telemetry and the Google Maps JavaScript API.
+/// Content Security Policy inputs. Built-in defaults cover same-origin plus the origins required by
+/// Application Insights browser telemetry and the Google Maps JavaScript API; configured values are
+/// added to those defaults rather than replacing them.
 /// </summary>
 public sealed class SecurityHeadersOptions
 {
@@ -39,10 +40,16 @@ public sealed class SecurityHeadersOptions
         return string.Join("; ", directives);
     }
 
+    /// <summary>
+    /// Configured sources are additive: they extend the built-in defaults rather than replacing
+    /// them, so adding one origin cannot silently drop telemetry or mapping origins.
+    /// </summary>
     private static string Directive(string name, string baseSources, IEnumerable<string> configured, params string[] defaults)
     {
-        var extra = configured.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
-        var sources = extra.Length > 0 ? extra : defaults;
+        var sources = defaults
+            .Concat(configured.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
         return sources.Length > 0
             ? $"{name} {baseSources} {string.Join(' ', sources)}"

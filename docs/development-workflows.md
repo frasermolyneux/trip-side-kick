@@ -40,8 +40,10 @@ npm run dev     # Vite dev server on http://localhost:5173, proxying /v1 and /ap
 `npm run build` through MSBuild targets, so a plain `dotnet build`/`dotnet publish` always produces a
 complete artefact. Set `-p:SkipClientBuild=true` to opt out when iterating on server code only.
 
-> `wwwroot/` is **generated output** and is git-ignored. Brochure-site static assets live in
-> `ClientApp/public/` and are copied verbatim by Vite.
+> `wwwroot/` is **generated output** and is git-ignored. It holds the PWA bundle only and is served
+> exclusively on the app hosts. Brochure-site static assets live in
+> `src/MX.TripSideKick.Web/SiteAssets/`, are source-controlled, and are served exclusively on the
+> site hosts — do not put them in `ClientApp/public/`, which Vite empties into `wwwroot/`.
 
 ## Running locally
 

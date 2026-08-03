@@ -69,7 +69,7 @@ dotnet run --project src/MX.TripSideKick.Web    # https://localhost:7207 = app, 
 - ❌ Do not add MediatR, CQRS buses, or a separate API/SPA deployment. One App Service, two host surfaces, direct application services.
 - ❌ Do not add `/health` or `/healthz` aliases. Exactly `/api/health/live` and `/api/health/ready`.
 - ❌ Do not put `IntegrationTests` in a test's fully-qualified name unless the test is genuinely expensive — CI filters that string out.
-- ❌ Do not commit `src/MX.TripSideKick.Web/wwwroot/` — it is generated Vite output and is git-ignored.
+- ❌ Do not commit `src/MX.TripSideKick.Web/wwwroot/` — it is generated Vite output and is git-ignored. Brochure static assets belong in `src/MX.TripSideKick.Web/SiteAssets/`, not in `ClientApp/public/`.
 - ❌ Do not log or trace PII: no trip content, document contents, booking references, email addresses or display names.
 
 ## Opening the PR

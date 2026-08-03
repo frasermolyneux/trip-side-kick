@@ -19,6 +19,7 @@ The same deployed app serves two hostnames and refuses to blur them.
 
 * `Hosting/HostSurfaceMiddleware.cs` runs pre-routing: unknown `Host` ⇒ `400`, `www.<apex>` ⇒ `308` to apex.
 * `Program.cs` applies `.RequireHost(...)` to `MapRazorPages()` (site hosts) and to `MapControllers()` / `MapOpenApi()` / `MapFallbackToFile("index.html")` (app hosts).
+* Static files are host-scoped too, via `UseWhen` on the resolved surface: the app surface serves the Vite-generated `wwwroot/`, the site surface serves the source-controlled `SiteAssets/`. Without that split `UseStaticFiles` would serve `/index.html` on the brochure host and defeat the fallback restriction.
 * Allow lists come from config (`HostRouting:SiteHosts` / `HostRouting:AppHosts`), written by Terraform as `HostRouting__SiteHosts__0`-style app settings, always including the `*.azurewebsites.net` default hostname.
 * **Do not** put host lists in `appsettings.Development.json` — the dev App Service sets `ASPNETCORE_ENVIRONMENT=Development` and index-keyed arrays would silently shadow Terraform's values. Local dev host lists live in `Properties/launchSettings.json`.
 * `/api/health/live`, `/api/health/ready` and `/info` are intentionally **not** host-restricted (App Service probes and the deployment version gate hit the default hostname).
