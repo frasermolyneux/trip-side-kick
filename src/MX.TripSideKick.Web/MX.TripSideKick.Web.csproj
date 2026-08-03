@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>MX.TripSideKick.Web</RootNamespace>
+    <UserSecretsId>mx-tripsidekick-web</UserSecretsId>
+    <SpaRoot>ClientApp\</SpaRoot>
+    <!-- Keep the enormous node_modules tree out of every MSBuild glob. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ClientApp is owned by Vite/npm; wwwroot is generated output (git-ignored). -->
+    <Compile Remove="$(SpaRoot)**" />
+    <Content Remove="$(SpaRoot)**" />
+    <None Remove="$(SpaRoot)**" />
+    <Content Remove="wwwroot\**" />
+    <None Remove="wwwroot\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Brochure-surface static assets. Deliberately outside wwwroot, which Vite owns and empties on
+      every client build; the two asset roots are mounted on their own host surfaces at runtime.
+    -->
+    <Content Include="SiteAssets\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.5.3" />
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.23.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <!-- Transitive Microsoft.OpenApi 2.0.0 carries GHSA-v5pm-xwqc-g5wc; pin to a patched build. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="MX.Observability.ApplicationInsights.AspNetCore" Version="1.1.28" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MX.TripSideKick.Application\MX.TripSideKick.Application.csproj" />
+    <ProjectReference Include="..\MX.TripSideKick.Infrastructure\MX.TripSideKick.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MX.TripSideKick.Web.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClientSourceFiles Include="$(SpaRoot)src\**\*;$(SpaRoot)public\**\*;$(SpaRoot)index.html;$(SpaRoot)package.json;$(SpaRoot)package-lock.json;$(SpaRoot)vite.config.ts;$(SpaRoot)tsconfig*.json" />
+  </ItemGroup>
+
+  <Target Name="EnsureClientDependencies" Condition="'$(SkipClientBuild)' != 'true' And !Exists('$(SpaRoot)node_modules')">
+    <Message Importance="high" Text="Installing client dependencies (npm ci) in $(SpaRoot)..." />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm ci" />
+  </Target>
+
+  <Target Name="BuildClient" BeforeTargets="Build" DependsOnTargets="EnsureClientDependencies" Condition="'$(SkipClientBuild)' != 'true'" Inputs="@(ClientSourceFiles)" Outputs="wwwroot\index.html">
+    <Message Importance="high" Text="Building client bundle (npm run build) in $(SpaRoot)..." />
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+  </Target>
+
+  <!--
+    wwwroot is produced by the Vite build after MSBuild has already evaluated its default
+    item globs, so the generated files are added to the publish set explicitly here.
+  -->
+  <Target Name="PublishClientAssets" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ClientDistFiles Include="wwwroot\**" />
+      <ResolvedFileToPublish Include="@(ClientDistFiles->'%(FullPath)')" Exclude="@(ResolvedFileToPublish)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
+</Project>

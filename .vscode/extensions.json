@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "hashicorp.terraform",
+    "github.vscode-github-actions",
+    "editorconfig.editorconfig",
+    "vitest.explorer",
+    "ms-azuretools.vscode-docker"
+  ]
+}

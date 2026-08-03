@@ -1,0 +1,30 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Plan trips without the spreadsheet";
+    ViewData["Description"] = "Trip Side Kick keeps flights, stays, bookings and day plans in one shared itinerary.";
+}
+
+<section class="hero">
+    <h1>Plan trips without the spreadsheet</h1>
+    <p>
+        Trip Side Kick keeps flights, stays, bookings and day-by-day plans in a single itinerary you
+        can share with the people you are travelling with.
+    </p>
+    <a class="cta cta-large" href="@Model.AppUrl">Open Trip Side Kick</a>
+</section>
+
+<section class="features">
+    <article>
+        <h2>One itinerary</h2>
+        <p>Every booking, reference and note for a trip in one place, ordered by day.</p>
+    </article>
+    <article>
+        <h2>Shared by default</h2>
+        <p>Invite fellow travellers so nobody has to forward another confirmation email.</p>
+    </article>
+    <article>
+        <h2>Works offline</h2>
+        <p>An installable progressive web app that keeps your plans available on the move.</p>
+    </article>
+</section>

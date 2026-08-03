@@ -1,0 +1,119 @@
+:root {
+  --tsk-ink: #0f3d3e;
+  --tsk-accent: #f2b705;
+  --tsk-paper: #fbfaf7;
+  --tsk-muted: #5a6b6b;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--tsk-paper);
+  color: var(--tsk-ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--tsk-ink);
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgb(15 61 62 / 12%);
+  flex-wrap: wrap;
+}
+
+.site-header .brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-header nav {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.cta {
+  background: var(--tsk-ink);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.cta-large {
+  display: inline-block;
+  padding: 0.85rem 1.75rem;
+  font-size: 1.05rem;
+  background: var(--tsk-accent);
+  color: var(--tsk-ink);
+}
+
+.site-main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  margin-bottom: 0.5rem;
+}
+
+.hero p {
+  max-width: 40rem;
+  color: var(--tsk-muted);
+}
+
+.features {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin-top: 3rem;
+}
+
+.features h2 {
+  font-size: 1.15rem;
+  margin-bottom: 0.25rem;
+}
+
+.features p {
+  color: var(--tsk-muted);
+  margin: 0;
+}
+
+.prose {
+  max-width: 45rem;
+}
+
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid rgb(15 61 62 / 12%);
+  color: var(--tsk-muted);
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.build-version {
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}

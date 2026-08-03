@@ -1,0 +1,164 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dotnet: clean",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "clean",
+        "${workspaceFolder}/src/MX.TripSideKick.sln"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet: build",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/MX.TripSideKick.sln"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet: test",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/src/MX.TripSideKick.sln",
+        "--filter",
+        "FullyQualifiedName!~IntegrationTests"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet: format",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "format",
+        "${workspaceFolder}/src",
+        "--verify-no-changes"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet: restore",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "restore",
+        "${workspaceFolder}/src/MX.TripSideKick.sln"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "dotnet: publish",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "${workspaceFolder}/src/MX.TripSideKick.Web/MX.TripSideKick.Web.csproj",
+        "-c",
+        "Release",
+        "-o",
+        "${workspaceFolder}/artifacts/publish"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet: run-web",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/src/MX.TripSideKick.Web/MX.TripSideKick.Web.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "dotnet: watch-web",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "watch",
+        "--project",
+        "${workspaceFolder}/src/MX.TripSideKick.Web/MX.TripSideKick.Web.csproj",
+        "run"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "npm: install",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "ci"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/src/MX.TripSideKick.Web/ClientApp"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: build",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "build"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/src/MX.TripSideKick.Web/ClientApp"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: test",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/src/MX.TripSideKick.Web/ClientApp"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "npm: dev",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/src/MX.TripSideKick.Web/ClientApp"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "terraform: validate",
+      "type": "shell",
+      "command": "terraform fmt -check -recursive && terraform init -backend=false && terraform validate",
+      "options": {
+        "cwd": "${workspaceFolder}/terraform"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

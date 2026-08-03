@@ -1,0 +1,62 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    assignees: ["frasermolyneux"]
+    directory: "/src"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "08:30"
+      timezone: "Etc/UTC"
+    groups:
+      all-updates:
+        patterns:
+          - "*"
+    ignore:
+      # MX.Observability.ApplicationInsights.AspNetCore pins the 2.x Application Insights SDK.
+      - dependency-name: "Microsoft.ApplicationInsights*"
+        versions: [">=3.0.0"]
+      - dependency-name: "Nerdbank.GitVersioning"
+        versions: [">=3.10.0"]
+
+  - package-ecosystem: "npm"
+    assignees: ["frasermolyneux"]
+    directory: "/src/MX.TripSideKick.Web/ClientApp"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "08:30"
+      timezone: "Etc/UTC"
+    groups:
+      all-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "terraform"
+    assignees: ["frasermolyneux"]
+    directory: "/terraform"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "08:30"
+      timezone: "Etc/UTC"
+    groups:
+      all-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    assignees: ["frasermolyneux"]
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "08:30"
+      timezone: "Etc/UTC"
+    groups:
+      all-updates:
+        patterns:
+          - "*"
