@@ -1,0 +1,33 @@
+@using MX.TripSideKick.Web
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] &middot; Trip Side Kick</title>
+    <meta name="description" content="@(ViewData["Description"] ?? "Trip Side Kick helps you plan, organise and share travel itineraries.")" />
+    <link rel="canonical" href="@($"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}")" />
+    <link rel="stylesheet" href="~/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" asp-page="/Index">Trip&nbsp;Side&nbsp;Kick</a>
+        <nav>
+            <a asp-page="/Index">Home</a>
+            <a asp-page="/Privacy">Privacy</a>
+            <a class="cta" href="https://tripsidekick.app/">Open the app</a>
+        </nav>
+    </header>
+
+    <main class="site-main">
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <p>&copy; @DateTime.UtcNow.Year Trip Side Kick.</p>
+        <p class="build-version" title="Build @BuildInfo.InformationalVersion">v@BuildInfo.BuildVersion</p>
+    </footer>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "MX.TripSideKick.Web": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7207;http://localhost:5207",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "HostRouting__SiteHosts__0": "site.localhost",
+        "HostRouting__SiteHosts__1": "127.0.0.1",
+        "HostRouting__AppHosts__0": "localhost",
+        "HostRouting__AppHosts__1": "app.localhost"
+      }
+    }
+  }
+}
