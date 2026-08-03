@@ -1,5 +1,8 @@
 name: Destroy Environment
 
+# checkov:skip=CKV_GHA_7:This is a manual, environment-gated destroy operation (not a build), and the
+# `environment` input is a closed enum (dev/prd) via `type: choice`, so it cannot inject arbitrary values.
+# This is the org-standard destroy-environment workflow shared with sibling repos (geo-location, travel-itinerary).
 on:
   workflow_dispatch:
     inputs:
