@@ -18,7 +18,7 @@ resource "cloudflare_dns_record" "app_service_verification" {
   name    = "asuid.${local.cloudflare_record_names[each.key]}"
   type    = "TXT"
   ttl     = 300
-  content = "\"${azurerm_linux_web_app.app.custom_domain_verification_id}\""
+  content = azurerm_linux_web_app.app.custom_domain_verification_id
   comment = "trip-side-kick ${var.environment} App Service custom domain verification"
 }
 

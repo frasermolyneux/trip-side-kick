@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
+using MX.TripSideKick.Web.Hosting;
+
 namespace MX.TripSideKick.Web.Pages;
 
 /// <summary>Brochure landing page served on the <c>tripsidekick.net</c> surface.</summary>
@@ -10,15 +12,6 @@ public class IndexModel : PageModel
 
     public void OnGet()
     {
-        var host = Request.Host.Host;
-
-        if (host.StartsWith("dev.", StringComparison.OrdinalIgnoreCase))
-        {
-            AppUrl = "https://dev.tripsidekick.app/";
-        }
-        else if (host.Contains("localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            AppUrl = "/";
-        }
+        AppUrl = AppSurfaceLinkResolver.Resolve(Request.Host.Host);
     }
 }

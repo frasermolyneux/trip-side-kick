@@ -19,7 +19,8 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
 
   // Never cache API traffic or non-GET requests.
-  if (request.method !== 'GET' || new URL(request.url).pathname.startsWith('/v1/')) {
+  const path = new URL(request.url).pathname;
+  if (request.method !== 'GET' || path.startsWith('/v1/') || path.startsWith('/api/')) {
     return;
   }
 
