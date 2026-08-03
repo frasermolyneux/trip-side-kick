@@ -1,0 +1,58 @@
+workload    = "trip-side-kick"
+environment = "prd"
+location    = "swedencentral"
+
+subscription_id = "903b6685-c12a-4703-ac54-7ec1ff15ca43"
+
+platform_monitoring_state = {
+  resource_group_name  = "rg-tf-platform-monitoring-prd-uksouth-01"
+  storage_account_name = "sa74f04c5f984e"
+  container_name       = "tfstate"
+  key                  = "terraform.tfstate"
+  subscription_id      = "7760848c-794d-4a19-8cb2-52f71a21ac2b"
+  tenant_id            = "e56a6947-bb9a-4a6e-846a-1f118d1c3a14"
+}
+
+platform_hosting_state = {
+  resource_group_name  = "rg-tf-platform-hosting-prd-uksouth-01"
+  storage_account_name = "sab227d365059d"
+  container_name       = "tfstate"
+  key                  = "terraform.tfstate"
+  subscription_id      = "7760848c-794d-4a19-8cb2-52f71a21ac2b"
+  tenant_id            = "e56a6947-bb9a-4a6e-846a-1f118d1c3a14"
+  use_oidc             = true
+}
+
+custom_domains = {
+  site = {
+    surface  = "site"
+    hostname = "tripsidekick.net"
+    zone     = "tripsidekick.net"
+  }
+  site_www = {
+    surface  = "site"
+    hostname = "www.tripsidekick.net"
+    zone     = "tripsidekick.net"
+    redirect = true
+  }
+  app = {
+    surface  = "app"
+    hostname = "tripsidekick.app"
+    zone     = "tripsidekick.app"
+  }
+  app_www = {
+    surface  = "app"
+    hostname = "www.tripsidekick.app"
+    zone     = "tripsidekick.app"
+    redirect = true
+  }
+}
+
+sql_database = {
+  sku_name                    = "GP_S_Gen5_1"
+  max_size_gb                 = 32
+  min_capacity                = 0.5
+  auto_pause_delay_in_minutes = 60
+}
+
+app_insights_sampling_percentage = 75
