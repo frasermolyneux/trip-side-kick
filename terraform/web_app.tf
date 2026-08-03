@@ -13,6 +13,16 @@ resource "azurerm_linux_web_app" "app" {
     type = "SystemAssigned"
   }
 
+  # checkov:skip=CKV_AZURE_222:This is a public-facing brochure/PWA site by design (see
+  # docs/architecture-overview.md); disabling public network access needs a VNet/Private Link front
+  # door, which is out of scope for this MVP (docs/infrastructure-and-cost.md).
+  # checkov:skip=CKV_AZURE_13:Identity is intentionally stubbed for this slice - see
+  # docs/identity-and-access.md and the `IDENTITY STUB` / `TODO (identity slice)` markers. App Service
+  # Authentication (Easy Auth) is deferred to the identity slice.
+  # checkov:skip=CKV_AZURE_17:No mTLS requirement for this public site; incoming client certificates
+  # would break normal browser/PWA traffic.
+  # checkov:skip=CKV_AZURE_88:The app is stateless and deployed via `WEBSITE_RUN_FROM_PACKAGE`; it has
+  # no need for a persistent Azure Files mount.
   site_config {
     application_stack {
       dotnet_version = "10.0"
@@ -25,6 +35,19 @@ resource "azurerm_linux_web_app" "app" {
 
     health_check_path                 = "/api/health/live"
     health_check_eviction_time_in_min = 5
+  }
+
+  # Diagnostic-only logging: written to the App Service's own log storage, not exposed to end users.
+  logs {
+    detailed_error_messages = true
+    failed_request_tracing  = true
+
+    http_logs {
+      file_system {
+        retention_in_days = 7
+        retention_in_mb   = 35
+      }
+    }
   }
 
   app_settings = merge(local.host_routing_app_settings, {

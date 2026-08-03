@@ -12,6 +12,12 @@ resource "azurerm_key_vault" "kv" {
 
   sku_name = "standard"
 
+  # checkov:skip=CKV2_AZURE_32:No VNet/private endpoint in this slice (docs/infrastructure-and-cost.md).
+  # checkov:skip=CKV_AZURE_109:No VNet in this slice (docs/infrastructure-and-cost.md); the web app
+  # is not VNet-integrated, so a "Deny" default with only trusted-service bypass would also block the
+  # app's own secret reads. Tighten alongside Private Link when the workload justifies its own networking.
+  # checkov:skip=CKV_AZURE_189:Same reasoning as CKV_AZURE_109 - disabling public network access requires
+  # a private endpoint, which is out of scope for this MVP (docs/infrastructure-and-cost.md).
   network_acls {
     bypass         = "AzureServices"
     default_action = "Allow"
