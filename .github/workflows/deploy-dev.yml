@@ -1,0 +1,105 @@
+name: Deploy Dev
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  build-and-test:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.web-ci.outputs.build_version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: src/MX.TripSideKick.Web/ClientApp/package-lock.json
+
+      - name: Install client dependencies
+        working-directory: src/MX.TripSideKick.Web/ClientApp
+        run: npm ci
+
+      - name: Run client tests
+        working-directory: src/MX.TripSideKick.Web/ClientApp
+        run: npm run test
+
+      - id: web-ci
+        uses: frasermolyneux/actions/dotnet-web-ci@dotnet-web-ci/v2
+        with:
+          perform-checkout: "false"
+          dotnet-project: "MX.TripSideKick.Web"
+          dotnet-version: 10.0.x
+          src-folder: "src"
+          skip-nuget-artifact-upload: "true"
+
+  terraform-plan-and-apply-dev:
+    permissions:
+      contents: read
+      id-token: write
+    environment: Development
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.repository }}-dev
+    env:
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_KEY }}
+    steps:
+      - uses: frasermolyneux/actions/terraform-plan-and-apply@terraform-plan-and-apply/v1.4
+        with:
+          terraform-folder: "terraform"
+          terraform-var-file: "tfvars/dev.tfvars"
+          terraform-backend-file: "backends/dev.backend.hcl"
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - id: terraform-output
+        shell: bash
+        run: |
+          cd terraform
+          echo "web_app_resource_group_name=$(terraform output -raw web_app_resource_group_name)" >> $GITHUB_OUTPUT
+          echo "web_app_name=$(terraform output -raw web_app_name)" >> $GITHUB_OUTPUT
+        env:
+          ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          ARM_USE_AZUREAD: true
+          ARM_USE_OIDC: true
+
+    outputs:
+      web_app_resource_group_name: ${{ steps.terraform-output.outputs.web_app_resource_group_name }}
+      web_app_name: ${{ steps.terraform-output.outputs.web_app_name }}
+
+  app-service-deploy-dev:
+    permissions:
+      contents: read
+      id-token: write
+    environment: Development
+    needs: [build-and-test, terraform-plan-and-apply-dev]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.repository }}-dev
+    steps:
+      - name: Deploy v${{ needs.build-and-test.outputs.build_version }}
+        uses: frasermolyneux/actions/deploy-app-service@deploy-app-service/v1.3
+        with:
+          web-artifact-name: "MX.TripSideKick.Web"
+          web-app-name: ${{ needs.terraform-plan-and-apply-dev.outputs.web_app_name }}
+          resource-group-name: ${{ needs.terraform-plan-and-apply-dev.outputs.web_app_resource_group_name }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: frasermolyneux/actions/wait-for-version@wait-for-version/v1.0
+        with:
+          info-url: "https://${{ needs.terraform-plan-and-apply-dev.outputs.web_app_name }}.azurewebsites.net/info"
+          expected-version: ${{ needs.build-and-test.outputs.build_version }}

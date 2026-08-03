@@ -1,0 +1,32 @@
+name: Destroy Development
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "55 23 * * *"
+
+permissions: {}
+
+jobs:
+  terraform-destroy-dev:
+    permissions:
+      contents: read
+      id-token: write # Required for Azure OIDC login
+    environment: Development
+    runs-on: ubuntu-latest
+
+    concurrency: # Prevents concurrent GitHub Actions runs against stateful resources
+      group: ${{ github.repository }}-dev
+
+    env:
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_KEY }}
+
+    steps:
+      - uses: frasermolyneux/actions/terraform-destroy@terraform-destroy/v1.3
+        with:
+          terraform-folder: "terraform"
+          terraform-var-file: "tfvars/dev.tfvars"
+          terraform-backend-file: "backends/dev.backend.hcl"
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
