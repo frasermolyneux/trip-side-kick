@@ -1,0 +1,18 @@
+{
+  "name": "Trip Side Kick",
+  "short_name": "Trip Side Kick",
+  "description": "Plan, organise and share travel itineraries.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f3d3e",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
