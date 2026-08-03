@@ -49,7 +49,7 @@ public sealed class HostSurfaceMiddleware(RequestDelegate next, HostSurfaceResol
 
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             context.Response.ContentType = "text/plain";
-            await context.Response.WriteAsync("Unrecognised host.").ConfigureAwait(false);
+            await context.Response.WriteAsync("Unrecognised host.", context.RequestAborted).ConfigureAwait(false);
             return;
         }
 
