@@ -63,8 +63,13 @@ resource "azurerm_linux_web_app" "app" {
     "BlobStorage__DocumentsContainerName"      = local.blob_container_names.documents
     "BlobStorage__DataProtectionContainerName" = local.blob_container_names.dataprotection
 
-    # TODO(data-slice): set Sql__ConnectionString once the managed-identity database user exists.
-    # Leaving it unset keeps the DbContext unregistered so startup and readiness never touch SQL.
+    # Managed-identity SQL auth - no secret, no connection string password. The system-assigned
+    # identity is granted EXACTLY db_datareader/db_datawriter by a CI step after apply (see
+    # terraform/scripts/configure-sql-data-access.ps1 and docs/data-and-persistence.md); until that
+    # step has run for a brand-new environment, SqlTripRepository etc. will fail on first use, but
+    # startup and health/readiness never crash - see SqlReadinessHealthCheck.
+    "Sql__ConnectionString" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Database=${azurerm_mssql_database.db.name};Authentication=Active Directory Managed Identity;Encrypt=true;TrustServerCertificate=false;Connection Timeout=30;"
+
     "KeyVault__Uri" = azurerm_key_vault.kv.vault_uri
 
     # Entra External ID (B2B collaboration + self-service sign-up), app surface only. No client

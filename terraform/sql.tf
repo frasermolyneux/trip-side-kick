@@ -73,7 +73,10 @@ resource "azurerm_mssql_database" "db" {
   tags = local.tags
 }
 
-# TODO(data-slice): create the contained database user for the App Service managed identity
-# (CREATE USER [<web app name>] FROM EXTERNAL PROVIDER) and grant it db_datareader/db_datawriter.
-# That is a T-SQL operation and is intentionally not performed by this walking skeleton, which never
-# opens a SQL connection.
+# The contained database user for the App Service's system-assigned managed identity
+# (CREATE USER [<web app name>] FROM EXTERNAL PROVIDER, granted EXACTLY db_datareader +
+# db_datawriter) is created by a CI step, not Terraform - it is a T-SQL operation and this stack
+# never opens a SQL connection. Migrations are applied the same way, under the workload service
+# principal above (the SQL AAD admin), never by the low-privilege runtime identity. See
+# terraform/scripts/configure-sql-data-access.ps1, docs/data-and-persistence.md, and the
+# "Configure SQL data access" step in .github/workflows/deploy-dev.yml / deploy-prd.yml.
