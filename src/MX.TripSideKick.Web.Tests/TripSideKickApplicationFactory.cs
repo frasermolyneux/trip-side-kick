@@ -32,11 +32,17 @@ public sealed class TripSideKickApplicationFactory : WebApplicationFactory<Progr
     /// An app-host client that authenticates as a fake user via <see cref="TestAuthHandler"/> - no
     /// real Entra tenant, cookie, or token is involved.
     /// </summary>
-    public HttpClient CreateAuthenticatedClientFor(string host, string subjectId, string displayName = "Test User")
+    public HttpClient CreateAuthenticatedClientFor(
+        string host, string subjectId, string displayName = "Test User", string? email = null)
     {
         var client = CreateClientFor(host);
         client.DefaultRequestHeaders.Add(TestAuthHandler.SubjectHeaderName, subjectId);
         client.DefaultRequestHeaders.Add(TestAuthHandler.DisplayNameHeaderName, displayName);
+        if (email is not null)
+        {
+            client.DefaultRequestHeaders.Add(TestAuthHandler.EmailHeaderName, email);
+        }
+
         return client;
     }
 

@@ -195,8 +195,9 @@ var appHosts = app.Services.AppHosts();
 app.MapHealthChecks("/api/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
 {
-    // Readiness deliberately does not probe SQL or Blob Storage in this slice; nothing is
-    // registered with the "ready" tag yet, so the app reports ready once the process is up.
+    // Only checks tagged "ready" affect this probe. When SQL is configured, a SQL readiness
+    // check is registered with this tag - it degrades gracefully rather than throwing, so a
+    // briefly unreachable database (e.g. serverless auto-pause resuming) never crashes startup.
     Predicate = check => check.Tags.Contains("ready")
 });
 app.MapInfoEndpoint();

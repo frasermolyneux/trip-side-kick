@@ -25,6 +25,7 @@ public sealed class TestAuthHandler(
     public const string SchemeName = "Test";
     public const string SubjectHeaderName = "X-Test-Subject-Id";
     public const string DisplayNameHeaderName = "X-Test-Display-Name";
+    public const string EmailHeaderName = "X-Test-Email";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -37,11 +38,16 @@ public sealed class TestAuthHandler(
             ? name.ToString()
             : "Test User";
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim("oid", subjectId!),
-            new Claim("name", displayName)
+            new("oid", subjectId!),
+            new("name", displayName)
         };
+
+        if (Request.Headers.TryGetValue(EmailHeaderName, out var email) && !string.IsNullOrEmpty(email))
+        {
+            claims.Add(new Claim("email", email!));
+        }
 
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);

@@ -3,7 +3,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using MX.TripSideKick.Application.Common;
+using MX.TripSideKick.Application.Invitations;
+using MX.TripSideKick.Application.Memberships;
+using MX.TripSideKick.Application.Travellers;
 using MX.TripSideKick.Application.Trips;
+using MX.TripSideKick.Infrastructure.HealthChecks;
+using MX.TripSideKick.Infrastructure.Notifications;
 using MX.TripSideKick.Infrastructure.Options;
 using MX.TripSideKick.Infrastructure.Persistence;
 using MX.TripSideKick.Infrastructure.Persistence.Repositories;
@@ -36,18 +42,32 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddMemoryCache();
         services.TryAddSingleton<BlobStorageClientFactory>();
+        services.TryAddScoped<IInvitationNotifier, LoggingInvitationNotifier>();
 
         var connectionString = configuration.GetSection(SqlOptions.SectionName)[nameof(SqlOptions.ConnectionString)];
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            // TODO(data-slice): remove once managed-identity SQL access is wired up.
+            // No SQL connection string is configured (e.g. local dev without docker-compose, or a
+            // deploy slice before the database is wired up) - fall back to empty repositories so
+            // DI stays valid and startup/readiness never touch SQL.
             services.TryAddScoped<ITripRepository, EmptyTripRepository>();
+            services.TryAddScoped<IMembershipRepository, EmptyMembershipRepository>();
+            services.TryAddScoped<ITravellerRepository, EmptyTravellerRepository>();
+            services.TryAddScoped<IInvitationRepository, EmptyInvitationRepository>();
+            services.TryAddScoped<IUnitOfWork, NoOpUnitOfWork>();
             return services;
         }
 
         services.AddDbContext<TripSideKickDbContext>(options => options.UseSqlServer(connectionString));
         services.TryAddScoped<ITripRepository, SqlTripRepository>();
+        services.TryAddScoped<IMembershipRepository, SqlMembershipRepository>();
+        services.TryAddScoped<ITravellerRepository, SqlTravellerRepository>();
+        services.TryAddScoped<IInvitationRepository, SqlInvitationRepository>();
+        services.TryAddScoped<IUnitOfWork, EfUnitOfWork>();
+
+        services.AddHealthChecks()
+            .AddCheck<SqlReadinessHealthCheck>("sql", tags: ["ready"]);
 
         return services;
     }

@@ -36,4 +36,35 @@ public sealed class HttpContextCurrentUser : ICurrentUser
     public string? DisplayName => IsAuthenticated
         ? principal?.FindFirstValue("name") ?? principal?.Identity?.Name
         : null;
+
+    /// <summary>
+    /// Reads the verified email claim. Entra External ID emits this as either <c>email</c> (the
+    /// modern v2.0 claim) or, for some external identity providers, <c>emails</c> (a JSON array
+    /// claim, of which the first value is used). Falls back to <c>preferred_username</c> only when
+    /// it looks like an email address, since some flows put the email there instead.
+    /// </summary>
+    public string? VerifiedEmail
+    {
+        get
+        {
+            if (!IsAuthenticated || principal is null)
+            {
+                return null;
+            }
+
+            var email = principal.FindFirstValue("email")
+                ?? principal.FindFirstValue("emails")
+                ?? principal.FindFirstValue(ClaimTypes.Email);
+
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                return email;
+            }
+
+            var preferredUsername = principal.FindFirstValue("preferred_username");
+            return preferredUsername is { Length: > 0 } candidate && candidate.Contains('@', StringComparison.Ordinal)
+                ? candidate
+                : null;
+        }
+    }
 }
