@@ -4,10 +4,10 @@ namespace MX.TripSideKick.Application.Abstractions;
 /// The authenticated principal for the current request.
 /// </summary>
 /// <remarks>
-/// IDENTITY STUB (walking skeleton): the only implementation today is
-/// <c>MX.TripSideKick.Web.Hosting.AnonymousCurrentUser</c>, which always reports a signed-out user.
-/// The identity slice replaces it with a claims-backed implementation fed by Microsoft Entra
-/// External ID (B2B collaboration + self-service sign-up) in the Molyneux.IO workforce tenant.
+/// Backed by <c>MX.TripSideKick.Web.Hosting.HttpContextCurrentUser</c>, which reads claims from the
+/// cookie-authenticated principal established by Microsoft Entra External ID (B2B collaboration and
+/// self-service sign-up) on the app surface. <see cref="SubjectId"/> is the stable object id trip
+/// membership is keyed on; <see cref="DisplayName"/> is PII and must never be logged or traced.
 /// </remarks>
 public interface ICurrentUser
 {

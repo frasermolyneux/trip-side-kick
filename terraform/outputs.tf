@@ -43,3 +43,18 @@ output "sql_server_fully_qualified_domain_name" {
 output "sql_database_name" {
   value = azurerm_mssql_database.db.name
 }
+
+output "identity_app_client_id" {
+  description = "Client ID of the Entra External ID app registration used for BFF sign-in."
+  value       = azuread_application.app_sign_in.client_id
+}
+
+output "identity_app_object_id" {
+  description = "Object ID of the Entra External ID app registration - used by the Graph automation step to attach the self-service sign-up user flow."
+  value       = azuread_application.app_sign_in.id
+}
+
+output "identity_tenant_id" {
+  value = data.azuread_client_config.current.tenant_id
+}
+

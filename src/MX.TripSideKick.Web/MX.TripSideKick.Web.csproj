@@ -30,6 +30,7 @@
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.23.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="4.14.2" />
     <!-- Transitive Microsoft.OpenApi 2.0.0 carries GHSA-v5pm-xwqc-g5wc; pin to a patched build. -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
     <PackageReference Include="MX.Observability.ApplicationInsights.AspNetCore" Version="1.1.28" />

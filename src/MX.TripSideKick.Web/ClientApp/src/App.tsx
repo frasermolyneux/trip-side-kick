@@ -1,26 +1,33 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 
-import { fetchClientConfig } from './api/clientConfig';
+import { fetchAuthMe, type AuthMeResponse } from './api/auth';
+import { fetchClientConfig, type ClientConfig } from './api/clientConfig';
 import { fetchStatus, type StatusResponse } from './api/status';
 import { initialiseTelemetry } from './telemetry';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
+const anonymousAuth: AuthMeResponse = { isAuthenticated: false, displayName: null };
+
 export function App() {
   const [state, setState] = useState<LoadState>('loading');
   const [status, setStatus] = useState<StatusResponse | undefined>();
-  const [signInEnabled, setSignInEnabled] = useState(false);
+  const [config, setConfig] = useState<ClientConfig | undefined>();
+  const [auth, setAuth] = useState<AuthMeResponse>(anonymousAuth);
 
   useEffect(() => {
     const controller = new AbortController();
 
     async function load() {
       try {
-        const config = await fetchClientConfig(controller.signal);
-        initialiseTelemetry(config.applicationInsightsConnectionString);
-        setSignInEnabled(config.signInEnabled);
+        const clientConfig = await fetchClientConfig(controller.signal);
+        initialiseTelemetry(clientConfig.applicationInsightsConnectionString);
+        setConfig(clientConfig);
         setStatus(await fetchStatus(controller.signal));
+        // Never store the result anywhere but component state: no tokens are returned, only the
+        // display name and a boolean - see docs/identity-and-access.md.
+        setAuth(await fetchAuthMe(controller.signal));
         setState('ready');
       } catch {
         if (!controller.signal.aborted) {
@@ -46,19 +53,31 @@ export function App() {
 
       {state === 'ready' && (
         <section className="placeholder">
-          {/* IDENTITY STUB: replaced by the real sign-in experience in the identity slice. */}
-          <h2>You are signed out</h2>
-          <p>
-            Sign-in is not available yet. This placeholder confirms the app shell, the versioned API
-            and browser telemetry are wired up end to end.
-          </p>
+          {auth.isAuthenticated ? (
+            <>
+              <h2>Welcome back{auth.displayName ? `, ${auth.displayName}` : ''}</h2>
+              <p>You are signed in. Trip planning lands in a later slice.</p>
+              <a className="button" href={config?.logoutUrl ?? '/v1/auth/logout'}>
+                Sign out
+              </a>
+            </>
+          ) : (
+            <>
+              <h2>You are signed out</h2>
+              <p>Sign in with an email one-time passcode or a personal Microsoft account.</p>
+              <a
+                className="button"
+                href={config?.loginUrl ?? '/v1/auth/login'}
+                aria-disabled={!(config?.signInEnabled ?? false)}
+              >
+                Sign in
+              </a>
+            </>
+          )}
           <p className="meta">
             Environment <strong>{status?.environment}</strong> · today is{' '}
             {format(new Date(), 'd MMMM yyyy')}
           </p>
-          <button type="button" disabled={!signInEnabled}>
-            Sign in (coming soon)
-          </button>
         </section>
       )}
     </main>

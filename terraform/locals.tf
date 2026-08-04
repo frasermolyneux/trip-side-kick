@@ -49,6 +49,25 @@ locals {
 
   is_serverless_sql = startswith(var.sql_database.sku_name, "GP_S_")
 
+  # Entra External ID app registration (identity.tf): the app surface's public hostnames plus the
+  # App Service default hostname (useful before/without a custom domain) get BFF sign-in callback
+  # URIs. Only "dev" also trusts the local HTTPS dev-server redirect URI (Properties/launchSettings.json).
+  identity_app_hostnames = [for domain in local.primary_domains : domain.hostname if domain.surface == "app"]
+
+  identity_redirect_uris = concat(
+    [for hostname in local.identity_app_hostnames : "https://${hostname}/signin-oidc"],
+    ["https://${local.web_app_name}.azurewebsites.net/signin-oidc"],
+    var.environment == "dev" ? ["https://localhost:7207/signin-oidc"] : []
+  )
+
+  # Entra app registrations support only a single front-channel logout URL; prefer the public app
+  # hostname and fall back to the default hostname when no custom domain is configured.
+  identity_logout_url = length(local.identity_app_hostnames) > 0 ? (
+    "https://${local.identity_app_hostnames[0]}/signout-callback-oidc"
+    ) : (
+    "https://${local.web_app_name}.azurewebsites.net/signout-callback-oidc"
+  )
+
   tags = merge(var.tags, {
     Environment = var.environment
     Workload    = var.workload

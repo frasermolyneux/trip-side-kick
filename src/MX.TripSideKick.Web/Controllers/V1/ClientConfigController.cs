@@ -23,11 +23,18 @@ public sealed class ClientConfigController(IOptions<ClientTelemetryOptions> tele
     [HttpGet]
     public ActionResult<ClientConfigResponse> Get() => Ok(new ClientConfigResponse(
         telemetryOptions.ClientConnectionString,
-        // TODO (identity slice): replace with the Entra External ID authority/client id once sign-in exists.
-        SignInEnabled: false));
+        SignInEnabled: true,
+        LoginUrl: "/v1/auth/login",
+        LogoutUrl: "/v1/auth/logout"));
 }
 
 /// <summary>Response contract for <c>GET /v1/client-config</c>.</summary>
 /// <param name="ApplicationInsightsConnectionString">Browser telemetry connection string, if configured.</param>
-/// <param name="SignInEnabled">Whether interactive sign-in is available (false while identity is stubbed).</param>
-public sealed record ClientConfigResponse(string? ApplicationInsightsConnectionString, bool SignInEnabled);
+/// <param name="SignInEnabled">Whether interactive sign-in is available.</param>
+/// <param name="LoginUrl">Relative BFF URL the SPA navigates to in order to sign in. Never a client id/authority - the SPA never talks to Entra directly.</param>
+/// <param name="LogoutUrl">Relative BFF URL the SPA navigates to in order to sign out.</param>
+public sealed record ClientConfigResponse(
+    string? ApplicationInsightsConnectionString,
+    bool SignInEnabled,
+    string LoginUrl,
+    string LogoutUrl);
