@@ -8,8 +8,10 @@ describe('fetchClientConfig', () => {
   it('maps the BFF payload', async () => {
     const config = await fetchClientConfig();
 
-    expect(config.signInEnabled).toBe(false);
+    expect(config.signInEnabled).toBe(true);
     expect(config.applicationInsightsConnectionString).toBeNull();
+    expect(config.loginUrl).toBe('/v1/auth/login');
+    expect(config.logoutUrl).toBe('/v1/auth/logout');
   });
 
   it('falls back to safe defaults when the endpoint fails', async () => {
@@ -17,6 +19,11 @@ describe('fetchClientConfig', () => {
 
     const config = await fetchClientConfig();
 
-    expect(config).toEqual({ applicationInsightsConnectionString: null, signInEnabled: false });
+    expect(config).toEqual({
+      applicationInsightsConnectionString: null,
+      signInEnabled: false,
+      loginUrl: '/v1/auth/login',
+      logoutUrl: '/v1/auth/logout'
+    });
   });
 });

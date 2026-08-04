@@ -67,9 +67,16 @@ resource "azurerm_linux_web_app" "app" {
     # Leaving it unset keeps the DbContext unregistered so startup and readiness never touch SQL.
     "KeyVault__Uri" = azurerm_key_vault.kv.vault_uri
 
-    # TODO(identity-slice): Entra External ID settings (authority, client id, sign-up user flow)
-    # land here. No client secret will ever be stored - the app authenticates with its managed
-    # identity and federated credentials.
+    # Entra External ID (B2B collaboration + self-service sign-up), app surface only. No client
+    # secret is ever set here - Microsoft.Identity.Web authenticates the confidential client with a
+    # signed assertion from the App Service's own system-assigned managed identity, trusted via the
+    # federated identity credential in identity.tf.
+    "AzureAd__Instance"                         = "https://login.microsoftonline.com/"
+    "AzureAd__TenantId"                         = data.azuread_client_config.current.tenant_id
+    "AzureAd__ClientId"                         = azuread_application.app_sign_in.client_id
+    "AzureAd__CallbackPath"                     = "/signin-oidc"
+    "AzureAd__SignedOutCallbackPath"            = "/signout-callback-oidc"
+    "AzureAd__ClientCredentials__0__SourceType" = "SignedAssertionFromManagedIdentity"
   })
 
   lifecycle {

@@ -2,12 +2,15 @@ using System.Threading.RateLimiting;
 
 using Azure.Identity;
 
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Identity.Web;
 
 using MX.Observability.ApplicationInsights.AspNetCore;
 
@@ -38,10 +41,52 @@ builder.Services.AddOptions<SecurityHeadersOptions>()
 builder.Services.AddTripSideKickApplication();
 builder.Services.AddTripSideKickInfrastructure(builder.Configuration);
 
-// IDENTITY STUB: no authentication scheme is registered in this slice. The identity slice adds
-// Microsoft Entra External ID (B2B collaboration + self-service sign-up) and replaces this
-// registration with a claims-backed implementation.
-builder.Services.AddSingleton<ICurrentUser, AnonymousCurrentUser>();
+// Entra External ID (B2B collaboration + self-service sign-up) sign-in for the app surface only.
+// Microsoft.Identity.Web authenticates the confidential client with a signed assertion from the
+// App Service's system-assigned managed identity (AzureAd:ClientCredentials:0:SourceType =
+// SignedAssertionFromManagedIdentity) - no client secret, no certificate. Tokens are redeemed and
+// held server-side; the browser only ever receives the session cookie below.
+builder.Services
+    .AddAuthentication(options =>
+    {
+        // Explicit rather than relying on Microsoft.Identity.Web's own scheme defaults: the
+        // session cookie must be the DefaultScheme so ordinary authenticated requests are
+        // resolved from the cookie, while only an explicit challenge (the /v1/auth/login
+        // endpoint) starts the OpenID Connect handshake.
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    })
+    .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
+    // Forces the authorization-code + PKCE response type (ResponseType=code) instead of
+    // Microsoft.Identity.Web's sign-in-only default (implicit id_token). Without this, no code is
+    // ever redeemed at the token endpoint, so the managed-identity federated credential configured
+    // via AzureAd:ClientCredentials (see terraform/identity.tf) would never actually be exercised.
+    // The in-memory cache holds the resulting tokens server-side only; nothing reaches the cookie
+    // (SaveTokens = false below) or the browser.
+    .EnableTokenAcquisitionToCallDownstreamApi()
+    .AddInMemoryTokenCaches();
+
+builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+{
+    // __Host- requires Secure, Path=/, and no explicit Domain - all true of the ASP.NET Core
+    // cookie-auth defaults this app runs behind (see docs/identity-and-access.md).
+    options.Cookie.Name = "__Host-tsk-auth";
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.HttpOnly = true;
+    options.LoginPath = "/v1/auth/login";
+});
+
+builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    // Access/refresh tokens never need to leave the redemption call; nothing downstream calls
+    // Microsoft Graph or another API on the user's behalf in this slice, so nothing needs to be
+    // persisted into the auth cookie.
+    options.SaveTokens = false;
+});
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
 // --- Web surface -----------------------------------------------------------------------------
 builder.Services.AddHostRouting(builder.Configuration);
@@ -53,9 +98,16 @@ builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
 
 // Same-origin, secure-by-default cookies ready for the identity slice.
+//
+// MinimumSameSitePolicy is deliberately NOT set here (left Unspecified): the OpenID Connect
+// handler's nonce/correlation cookies must keep SameSite=None, because the identity provider's
+// callback to /signin-oidc is a cross-site POST. If CookiePolicyMiddleware forced every cookie up
+// to SameSite=Lax, the browser would never return the None-scoped nonce/correlation cookies on
+// that cross-site POST, and sign-in would fail with a correlation error on every attempt. Every
+// cookie this app itself issues (the auth cookie above, antiforgery below) already sets its own
+// explicit SameSite=Lax, so nothing relies on this policy to be same-origin safe.
 builder.Services.Configure<CookiePolicyOptions>(options =>
 {
-    options.MinimumSameSitePolicy = SameSiteMode.Lax;
     options.HttpOnly = HttpOnlyPolicy.Always;
     options.Secure = CookieSecurePolicy.Always;
 });
@@ -132,6 +184,7 @@ app.UseWhen(
 app.UseCookiePolicy();
 app.UseRouting();
 app.UseRateLimiter();
+app.UseAuthentication();
 app.UseAuthorization();
 
 var siteHosts = app.Services.SiteHosts();

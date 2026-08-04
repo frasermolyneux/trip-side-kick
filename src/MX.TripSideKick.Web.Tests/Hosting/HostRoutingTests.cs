@@ -75,7 +75,35 @@ public sealed class HostRoutingTests(TripSideKickApplicationFactory factory)
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("\"authenticationStubbed\":true", body, StringComparison.Ordinal);
+        Assert.Contains("\"authenticated\":false", body, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/v1/auth/login")]
+    [InlineData("/v1/auth/logout")]
+    [InlineData("/v1/auth/me")]
+    [InlineData("/v1/auth/antiforgery")]
+    public async Task App_host_exposes_auth_endpoints(string path)
+    {
+        using var client = factory.CreateClientFor(TripSideKickApplicationFactory.AppHost);
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
+
+        Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/v1/auth/login")]
+    [InlineData("/v1/auth/logout")]
+    [InlineData("/v1/auth/me")]
+    [InlineData("/v1/auth/antiforgery")]
+    public async Task Site_host_does_not_expose_auth_endpoints(string path)
+    {
+        using var client = factory.CreateClientFor(TripSideKickApplicationFactory.SiteHost);
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

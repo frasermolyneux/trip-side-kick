@@ -19,13 +19,10 @@ public sealed class StatusController(ICurrentUser currentUser, IHostEnvironment 
     [HttpGet]
     public ActionResult<StatusResponse> Get() => Ok(new StatusResponse(
         environment.EnvironmentName,
-        currentUser.IsAuthenticated,
-        // TODO (identity slice): remove once Entra External ID sign-in is wired up.
-        AuthenticationStubbed: true));
+        currentUser.IsAuthenticated));
 }
 
 /// <summary>Response contract for <c>GET /v1/status</c>.</summary>
 /// <param name="Environment">The ASP.NET Core environment name.</param>
-/// <param name="Authenticated">Whether the caller is authenticated (always false in this slice).</param>
-/// <param name="AuthenticationStubbed">Whether sign-in is stubbed out rather than implemented.</param>
-public sealed record StatusResponse(string Environment, bool Authenticated, bool AuthenticationStubbed);
+/// <param name="Authenticated">Whether the caller is authenticated.</param>
+public sealed record StatusResponse(string Environment, bool Authenticated);

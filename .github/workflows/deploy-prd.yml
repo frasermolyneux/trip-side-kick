@@ -140,6 +140,17 @@ jobs:
           ARM_USE_AZUREAD: true
           ARM_USE_OIDC: true
 
+      # See terraform/scripts/configure-external-id-sign-up.sh for scope/rationale.
+      - uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure Entra External ID self-service sign-up
+        shell: bash
+        run: terraform/scripts/configure-external-id-sign-up.sh
+
     outputs:
       web_app_resource_group_name: ${{ steps.terraform-output-dev.outputs.web_app_resource_group_name }}
       web_app_name: ${{ steps.terraform-output-dev.outputs.web_app_name }}
@@ -225,6 +236,17 @@ jobs:
           ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
           ARM_USE_AZUREAD: true
           ARM_USE_OIDC: true
+
+      # See terraform/scripts/configure-external-id-sign-up.sh for scope/rationale.
+      - uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure Entra External ID self-service sign-up
+        shell: bash
+        run: terraform/scripts/configure-external-id-sign-up.sh
 
     outputs:
       web_app_resource_group_name: ${{ steps.terraform-output-prd.outputs.web_app_resource_group_name }}

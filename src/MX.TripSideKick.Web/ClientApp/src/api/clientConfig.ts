@@ -1,11 +1,15 @@
 export interface ClientConfig {
   applicationInsightsConnectionString: string | null;
   signInEnabled: boolean;
+  loginUrl: string;
+  logoutUrl: string;
 }
 
 const defaultConfig: ClientConfig = {
   applicationInsightsConnectionString: null,
-  signInEnabled: false
+  signInEnabled: false,
+  loginUrl: '/v1/auth/login',
+  logoutUrl: '/v1/auth/logout'
 };
 
 /**
@@ -27,6 +31,8 @@ export async function fetchClientConfig(signal?: AbortSignal): Promise<ClientCon
 
   return {
     applicationInsightsConnectionString: payload.applicationInsightsConnectionString ?? null,
-    signInEnabled: payload.signInEnabled ?? false
+    signInEnabled: payload.signInEnabled ?? false,
+    loginUrl: payload.loginUrl ?? defaultConfig.loginUrl,
+    logoutUrl: payload.logoutUrl ?? defaultConfig.logoutUrl
   };
 }

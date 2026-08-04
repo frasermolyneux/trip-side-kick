@@ -36,6 +36,8 @@ resource "azurerm_role_assignment" "web_app_kv_secrets_user" {
   principal_id         = azurerm_linux_web_app.app.identity[0].principal_id
 }
 
-# TODO(identity-slice): the Entra External ID application registration and any signing material it
-# needs will be provisioned in the identity slice. No client secrets are stored here - the app uses
-# its managed identity, and federated credentials are used for anything that needs an assertion.
+# Entra External ID (identity.tf) needs no signing material here: the app registration
+# authenticates via a federated identity credential trusting the web app's system-assigned managed
+# identity (Microsoft.Identity.Web's SignedAssertionFromManagedIdentity credential source), so no
+# client secret or certificate is ever stored in this Key Vault. It remains available for
+# certificate-backed credentials as a documented fallback - see docs/identity-and-access.md.

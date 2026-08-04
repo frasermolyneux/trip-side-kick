@@ -1,7 +1,6 @@
 export interface StatusResponse {
   environment: string;
   authenticated: boolean;
-  authenticationStubbed: boolean;
 }
 
 export async function fetchStatus(signal?: AbortSignal): Promise<StatusResponse> {
