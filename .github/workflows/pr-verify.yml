@@ -52,17 +52,19 @@ jobs:
           src-folder: "src"
           skip-nuget-artifact-upload: "true"
 
-      # NBGV's NuGetPackageVersion (build_version) uses a SemVer1-style "-g<hash>" suffix on
-      # non-public (PR) builds, e.g. "0.1.4-gf0d70f922e". The app's /info endpoint reports
-      # BuildVersion = InformationalVersion.Split('+')[0] (BuildInfo.cs), which strips SemVer2
-      # build metadata from the "semver" output instead, e.g. "0.1.4+f0d70f922e" -> "0.1.4".
-      # These two never match on non-public builds, so derive the expected value the same way
-      # the app does, rather than comparing against build_version directly.
+      # NBGV's build_version/semver outputs carry a non-public-build suffix (e.g.
+      # "0.1.5-g526a71bab4"), while the app's /info endpoint reports
+      # BuildVersion = InformationalVersion.Split('+')[0] (BuildInfo.cs), which yields the
+      # bare "{Major}.{Minor}.{Height}" with no suffix at all (confirmed empirically: PR
+      # builds report e.g. "0.1.5", never "0.1.5-g526a71bab4" or "0.1.5+526a71bab4"). These
+      # never match on non-public builds, so derive the expected value the same way the app
+      # does - the bare version prefix before the first '-' or '+' - rather than comparing
+      # against build_version/semver directly.
       - id: expected-version
         shell: bash
         run: |
           SEMVER="${{ steps.web-ci.outputs.semver }}"
-          echo "value=${SEMVER%%+*}" >> "$GITHUB_OUTPUT"
+          echo "value=${SEMVER%%[-+]*}" >> "$GITHUB_OUTPUT"
 
     outputs:
       build_version: ${{ steps.web-ci.outputs.build_version }}
