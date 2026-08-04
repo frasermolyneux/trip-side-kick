@@ -36,6 +36,11 @@ if ! command -v az >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "python3 is required (used to parse Graph JSON responses without adding a jq dependency)" >&2
+  exit 1
+fi
+
 echo "Enabling tenant-wide self-service sign-up (authenticationFlowsPolicy)..."
 
 current_policy=$(az rest --method GET --uri "https://graph.microsoft.com/v1.0/policies/authenticationFlowsPolicy")

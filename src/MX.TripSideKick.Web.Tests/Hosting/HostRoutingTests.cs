@@ -82,6 +82,7 @@ public sealed class HostRoutingTests(TripSideKickApplicationFactory factory)
     [InlineData("/v1/auth/login")]
     [InlineData("/v1/auth/logout")]
     [InlineData("/v1/auth/me")]
+    [InlineData("/v1/auth/antiforgery")]
     public async Task App_host_exposes_auth_endpoints(string path)
     {
         using var client = factory.CreateClientFor(TripSideKickApplicationFactory.AppHost);
@@ -95,6 +96,7 @@ public sealed class HostRoutingTests(TripSideKickApplicationFactory factory)
     [InlineData("/v1/auth/login")]
     [InlineData("/v1/auth/logout")]
     [InlineData("/v1/auth/me")]
+    [InlineData("/v1/auth/antiforgery")]
     public async Task Site_host_does_not_expose_auth_endpoints(string path)
     {
         using var client = factory.CreateClientFor(TripSideKickApplicationFactory.SiteHost);

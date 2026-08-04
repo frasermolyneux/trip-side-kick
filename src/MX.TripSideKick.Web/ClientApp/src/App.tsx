@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 
-import { fetchAuthMe, type AuthMeResponse } from './api/auth';
+import { fetchAuthMe, signOut, type AuthMeResponse } from './api/auth';
 import { fetchClientConfig, type ClientConfig } from './api/clientConfig';
 import { fetchStatus, type StatusResponse } from './api/status';
 import { initialiseTelemetry } from './telemetry';
@@ -57,9 +57,13 @@ export function App() {
             <>
               <h2>Welcome back{auth.displayName ? `, ${auth.displayName}` : ''}</h2>
               <p>You are signed in. Trip planning lands in a later slice.</p>
-              <a className="button" href={config?.logoutUrl ?? '/v1/auth/logout'}>
+              <button
+                type="button"
+                className="button"
+                onClick={() => void signOut(config?.logoutUrl ?? '/v1/auth/logout')}
+              >
                 Sign out
-              </a>
+              </button>
             </>
           ) : (
             <>
@@ -69,6 +73,11 @@ export function App() {
                 className="button"
                 href={config?.loginUrl ?? '/v1/auth/login'}
                 aria-disabled={!(config?.signInEnabled ?? false)}
+                onClick={(event) => {
+                  if (!(config?.signInEnabled ?? false)) {
+                    event.preventDefault();
+                  }
+                }}
               >
                 Sign in
               </a>

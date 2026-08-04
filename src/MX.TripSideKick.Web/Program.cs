@@ -47,7 +47,15 @@ builder.Services.AddTripSideKickInfrastructure(builder.Configuration);
 // SignedAssertionFromManagedIdentity) - no client secret, no certificate. Tokens are redeemed and
 // held server-side; the browser only ever receives the session cookie below.
 builder.Services
-    .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+    .AddAuthentication(options =>
+    {
+        // Explicit rather than relying on Microsoft.Identity.Web's own scheme defaults: the
+        // session cookie must be the DefaultScheme so ordinary authenticated requests are
+        // resolved from the cookie, while only an explicit challenge (the /v1/auth/login
+        // endpoint) starts the OpenID Connect handshake.
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    })
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
     // Forces the authorization-code + PKCE response type (ResponseType=code) instead of
     // Microsoft.Identity.Web's sign-in-only default (implicit id_token). Without this, no code is
