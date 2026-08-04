@@ -5,6 +5,7 @@ import {
   INFRASTRUCTURE_PROJECT_DIR,
   MIGRATION_CONNECTION_STRING_ENV_VAR,
   REPO_ROOT,
+  SOLUTION_PATH,
   WEB_PROJECT_DIR
 } from './env.ts';
 
@@ -35,6 +36,18 @@ export async function applyMigrations(connectionString: string): Promise<void> {
 /** Restores the repo's local `dotnet-ef` tool (see `.config/dotnet-tools.json`) if not already present. */
 export async function restoreDotnetTools(): Promise<void> {
   await runDotnet(['tool', 'restore']);
+}
+
+/**
+ * Restores NuGet packages for the whole solution. `dotnet ef database update` needs the
+ * Infrastructure/Web projects' `obj/project.assets.json` to build its design-time model and does
+ * NOT trigger an implicit restore itself - on a fresh checkout (no prior `dotnet build`/`dotnet
+ * test`/`dotnet restore`), skipping this makes migrations fail with NETSDK1004. Idempotent/cheap
+ * to re-run, so always called from `global-setup.ts` rather than relying on a separate CI step or
+ * a developer having already built the solution.
+ */
+export async function restoreSolution(): Promise<void> {
+  await runDotnet(['restore', fileURLToPath(SOLUTION_PATH)]);
 }
 
 function runDotnet(args: string[], extraEnv: Record<string, string> = {}): Promise<void> {

@@ -1,7 +1,7 @@
 import type { FullConfig } from '@playwright/test';
 
 import { HTTP_BASE_URL } from './support/env.ts';
-import { restoreDotnetTools, applyMigrations } from './support/migrate.ts';
+import { restoreDotnetTools, restoreSolution, applyMigrations } from './support/migrate.ts';
 import { startSqlContainer, buildConnectionString } from './support/sqlContainer.ts';
 import { ensureAppPublished, ensureDevCertificate, startApp, stopApp, waitForHealthy } from './support/appProcess.ts';
 
@@ -22,6 +22,9 @@ import { ensureAppPublished, ensureDevCertificate, startApp, stopApp, waitForHea
 export default async function globalSetup(_config: FullConfig): Promise<() => Promise<void>> {
   console.log('[global-setup] Restoring local dotnet tools (dotnet-ef)...');
   await restoreDotnetTools();
+
+  console.log('[global-setup] Restoring .NET solution NuGet packages...');
+  await restoreSolution();
 
   console.log('[global-setup] Starting ephemeral SQL Server container...');
   const container = await startSqlContainer();
