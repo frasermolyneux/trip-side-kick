@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
+using MX.TripSideKick.Infrastructure.Options;
 using MX.TripSideKick.Infrastructure.Persistence;
 
 namespace MX.TripSideKick.Infrastructure.HealthChecks;
@@ -11,16 +14,30 @@ namespace MX.TripSideKick.Infrastructure.HealthChecks;
 /// <see cref="HealthStatus.Degraded"/> rather than throwing/crashing startup if SQL is briefly
 /// unavailable (e.g. serverless auto-pause resuming).
 /// </summary>
-public sealed class SqlReadinessHealthCheck(TripSideKickDbContext dbContext) : IHealthCheck
+/// <remarks>
+/// Registered unconditionally by <c>AddTripSideKickInfrastructure</c>. This check resolves
+/// <see cref="SqlOptions"/> lazily and reports <see cref="HealthStatus.Healthy"/> without ever
+/// resolving <see cref="TripSideKickDbContext"/> when no connection string is configured - the
+/// <see cref="TripSideKickDbContext"/> registration has no provider configured in that case, so
+/// resolving it would throw.
+/// </remarks>
+public sealed class SqlReadinessHealthCheck(IOptions<SqlOptions> sqlOptions, IServiceProvider serviceProvider) : IHealthCheck
 {
-    private readonly TripSideKickDbContext dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    private readonly IOptions<SqlOptions> sqlOptions = sqlOptions ?? throw new ArgumentNullException(nameof(sqlOptions));
+    private readonly IServiceProvider serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(sqlOptions.Value.ConnectionString))
+        {
+            return HealthCheckResult.Healthy("SQL is not configured; readiness check skipped.");
+        }
+
         try
         {
+            var dbContext = serviceProvider.GetRequiredService<TripSideKickDbContext>();
             var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken).ConfigureAwait(false);
 
             return canConnect

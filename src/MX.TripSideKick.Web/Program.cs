@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 
 using Azure.Identity;
 
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.CookiePolicy;
@@ -51,6 +52,10 @@ builder.Services.AddTripSideKickInfrastructure(builder.Configuration);
 // App Service's system-assigned managed identity (AzureAd:ClientCredentials:0:SourceType =
 // SignedAssertionFromManagedIdentity) - no client secret, no certificate. Tokens are redeemed and
 // held server-side; the browser only ever receives the session cookie below.
+// A synthetic scheme name for the policy scheme below - never used to authenticate a request
+// directly, only as the DefaultChallengeScheme's forwarding target selector.
+const string ApiChallengeScheme = "TripSideKick.ApiChallenge";
+
 builder.Services
     .AddAuthentication(options =>
     {
@@ -59,7 +64,25 @@ builder.Services
         // resolved from the cookie, while only an explicit challenge (the /v1/auth/login
         // endpoint) starts the OpenID Connect handshake.
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+
+        // A plain "/v1 API" is consumed by the SPA via fetch/XHR, not browser navigation: it must
+        // never trigger the OpenID Connect authorization-code redirect flow (that hits the real
+        // identity provider over the network and, when it fails, previously surfaced as an opaque
+        // 500 instead of a 401 - see docs/testing.md). ApiChallengeScheme routes an automatic
+        // [Authorize] challenge to the Cookie handler for /v1 requests (whose OnRedirectToLogin /
+        // OnRedirectToAccessDenied below short-circuit to a plain 401/403) and to OpenIdConnect
+        // for everything else (browser-navigated Razor Pages / SPA shell routes, where a redirect
+        // to sign-in is the correct behavior). The explicit Challenge(...) call in
+        // AuthController.Login always names OpenIdConnectDefaults.AuthenticationScheme directly,
+        // so it is unaffected by this default.
+        options.DefaultChallengeScheme = ApiChallengeScheme;
+    })
+    .AddPolicyScheme(ApiChallengeScheme, displayName: "API-aware challenge selector", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+            context.Request.Path.StartsWithSegments("/v1")
+                ? CookieAuthenticationDefaults.AuthenticationScheme
+                : OpenIdConnectDefaults.AuthenticationScheme;
     })
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
     // Forces the authorization-code + PKCE response type (ResponseType=code) instead of
@@ -80,6 +103,34 @@ builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefa
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.HttpOnly = true;
     options.LoginPath = "/v1/auth/login";
+
+    // The Cookie handler's default OnRedirectToLogin/OnRedirectToAccessDenied issue a 302 to
+    // LoginPath/AccessDeniedPath - correct for browser navigation, wrong for a JSON API. When
+    // ApiChallengeScheme (above) forwards a /v1 challenge here, respond with a plain status code
+    // instead so fetch/XHR callers (and ApiExceptionHandler-style JSON clients) see 401/403.
+    var defaultRedirectToLogin = options.Events.OnRedirectToLogin;
+    options.Events.OnRedirectToLogin = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/v1"))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        return defaultRedirectToLogin(context);
+    };
+
+    var defaultRedirectToAccessDenied = options.Events.OnRedirectToAccessDenied;
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/v1"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        return defaultRedirectToAccessDenied(context);
+    };
 });
 
 builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>

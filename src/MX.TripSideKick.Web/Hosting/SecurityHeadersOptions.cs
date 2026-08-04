@@ -25,7 +25,13 @@ public sealed class SecurityHeadersOptions
         {
             "default-src 'self'",
             Directive("script-src", "'self'", ScriptSources, "https://maps.googleapis.com"),
-            Directive("style-src", "'self'", StyleSources, "https://fonts.googleapis.com"),
+            // 'unsafe-inline' is required here (not just for style-src-elem/<style> tags): MUI's
+            // Popper-based components (Select, Menu, Autocomplete, Tooltip, Dialog, Snackbar
+            // transitions) position and animate themselves by writing directly to `element.style`
+            // from JS. CSP nonces only cover <style>/<link> elements, never inline style attribute
+            // mutations, so without this every MUI popover/dropdown silently fails to render -
+            // discovered via Playwright E2E when the invite-role MUI <Select> dropdown never opened.
+            Directive("style-src", "'self' 'unsafe-inline'", StyleSources, "https://fonts.googleapis.com"),
             Directive("img-src", "'self' data: blob:", ImageSources, "https://maps.gstatic.com", "https://maps.googleapis.com"),
             Directive("font-src", "'self'", FontSources, "https://fonts.gstatic.com"),
             Directive("connect-src", "'self'", ConnectSources, "https://maps.googleapis.com", "https://*.in.applicationinsights.azure.com", "https://*.livediagnostics.monitor.azure.com"),
