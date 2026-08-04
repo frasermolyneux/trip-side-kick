@@ -52,8 +52,21 @@ jobs:
           src-folder: "src"
           skip-nuget-artifact-upload: "true"
 
+      # NBGV's NuGetPackageVersion (build_version) uses a SemVer1-style "-g<hash>" suffix on
+      # non-public (PR) builds, e.g. "0.1.4-gf0d70f922e". The app's /info endpoint reports
+      # BuildVersion = InformationalVersion.Split('+')[0] (BuildInfo.cs), which strips SemVer2
+      # build metadata from the "semver" output instead, e.g. "0.1.4+f0d70f922e" -> "0.1.4".
+      # These two never match on non-public builds, so derive the expected value the same way
+      # the app does, rather than comparing against build_version directly.
+      - id: expected-version
+        shell: bash
+        run: |
+          SEMVER="${{ steps.web-ci.outputs.semver }}"
+          echo "value=${SEMVER%%+*}" >> "$GITHUB_OUTPUT"
+
     outputs:
       build_version: ${{ steps.web-ci.outputs.build_version }}
+      expected_version: ${{ steps.expected-version.outputs.value }}
 
   terraform-plan-dev:
     permissions:
@@ -136,7 +149,7 @@ jobs:
           web-app-name: ${{ needs.terraform-plan-and-apply-dev.outputs.web_app_name }}
           resource-group-name: ${{ needs.terraform-plan-and-apply-dev.outputs.web_app_resource_group_name }}
           info-url: "https://${{ needs.terraform-plan-and-apply-dev.outputs.web_app_name }}.azurewebsites.net/info"
-          expected-version: ${{ needs.build-and-test.outputs.build_version }}
+          expected-version: ${{ needs.build-and-test.outputs.expected_version }}
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
@@ -144,7 +157,7 @@ jobs:
       - uses: frasermolyneux/actions/wait-for-version@wait-for-version/v1.0
         with:
           info-url: "https://${{ needs.terraform-plan-and-apply-dev.outputs.web_app_name }}.azurewebsites.net/info"
-          expected-version: ${{ needs.build-and-test.outputs.build_version }}
+          expected-version: ${{ needs.build-and-test.outputs.expected_version }}
 
   terraform-plan-prd:
     permissions:
