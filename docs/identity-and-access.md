@@ -68,13 +68,29 @@ unreachable (404) on the brochure host; see `HostRoutingTests`.
 These are one-time actions only the Molyneux.IO tenant admin can perform. **Do them before the first
 `deploy-dev` run** — without them, sign-in will fail even though Terraform applies cleanly.
 
-1. **Grant admin consent for the workload's Graph application permissions.**
-   - Portal: Entra admin center → **App registrations** → the trip-side-kick workload service
-     principal (the one platform-workloads created, not `app-sign-in` from this slice) → **API
-     permissions** → **Grant admin consent for Molyneux.IO**.
-   - Verify: the same page should show a green check against `Application.ReadWrite.OwnedBy`,
-     `Policy.ReadWrite.AuthenticationFlows`, `IdentityUserFlow.ReadWrite.All`,
-     `IdentityProvider.ReadWrite.All` with status "Granted for Molyneux.IO".
+1. **Verify the workload's Graph application permissions are consented — no portal click required.**
+   - These four permissions (`Application.ReadWrite.OwnedBy`, `Policy.ReadWrite.AuthenticationFlows`,
+     `IdentityUserFlow.ReadWrite.All`, `IdentityProvider.ReadWrite.All`) are declared as
+     `graph_api_permissions` on the trip-side-kick workload in **`platform-workloads`**
+     (`terraform/workloads/trip-side-kick/trip-side-kick.json`), and are granted by that repo's own
+     Terraform via `azuread_app_role_assignment` resources
+     (`terraform/azure-workloads.graph-api-permissions.tf`) directly between the workload service
+     principal and the Microsoft Graph service principal. Creating an `azuread_app_role_assignment`
+     for an application permission **is** the admin-consent grant — there is no separate
+     `requiredResourceAccess` + "Grant admin consent" button step, because the workload's own app
+     registration never declares these as requested permissions in its manifest.
+   - **This means the App registration's own "API permissions" blade will never show these entries —
+     that is expected, not a sign something is missing.** Look in the right place instead:
+     Entra admin center → **Enterprise applications** → search `spn-trip-side-kick-development`
+     (or `spn-trip-side-kick-production` for prd) → **Permissions** tab. This lists actual granted
+     app roles regardless of how they were granted, and should show all four Microsoft Graph
+     application permissions above.
+   - As of this PR, `platform-workloads`' `main` branch already carries these `graph_api_permissions`
+     (commits `ac090eb` and `8f02fe0`) and its `Deploy Prd` workflow (which applies from a single
+     state covering both dev and prd workload identities) ran successfully after both commits — so
+     this step should already be satisfied. Treat it as **verify, not act**: if the Enterprise
+     applications → Permissions page is empty, the fix is to re-run `platform-workloads`' deploy
+     pipeline (or check its latest run for errors), not to hunt for a consent button.
    - Without this, `configure-external-id-sign-up.sh`'s `az rest` calls return `403 Authorization_RequestDenied`.
 
 2. **Confirm external collaboration / self-service sign-up is not blocked tenant-wide.**
