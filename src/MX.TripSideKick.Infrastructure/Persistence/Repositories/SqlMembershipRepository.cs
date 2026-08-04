@@ -5,6 +5,8 @@ using MX.TripSideKick.Application.Memberships;
 using MX.TripSideKick.Domain.Memberships;
 using MX.TripSideKick.Domain.Trips;
 
+using static MX.TripSideKick.Infrastructure.Persistence.Repositories.SqlExceptionHelpers;
+
 namespace MX.TripSideKick.Infrastructure.Persistence.Repositories;
 
 /// <summary>EF Core implementation of <see cref="IMembershipRepository"/>.</summary>
@@ -39,7 +41,20 @@ public sealed class SqlMembershipRepository(TripSideKickDbContext dbContext) : I
         ArgumentNullException.ThrowIfNull(membership);
 
         await dbContext.Memberships.AddAsync(membership, cancellationToken).ConfigureAwait(false);
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            // A concurrent request already created the (TripId, SubjectId) row (e.g. two
+            // near-simultaneous invitation-accept calls for the same subject) - translate the raw
+            // unique-index violation into the same domain conflict the application-level
+            // check-then-act path in InvitationService already raises, instead of letting an
+            // unhandled SqlException surface as a 500.
+            throw new AlreadyMemberException("You are already a member of this trip.");
+        }
     }
 
     public async Task UpdateAsync(Membership membership, byte[] expectedRowVersion, CancellationToken cancellationToken = default)

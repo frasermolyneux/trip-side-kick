@@ -6,6 +6,8 @@ using MX.TripSideKick.Domain.Memberships;
 using MX.TripSideKick.Domain.Travellers;
 using MX.TripSideKick.Domain.Trips;
 
+using static MX.TripSideKick.Infrastructure.Persistence.Repositories.SqlExceptionHelpers;
+
 namespace MX.TripSideKick.Infrastructure.Persistence.Repositories;
 
 /// <summary>EF Core implementation of <see cref="ITravellerRepository"/>.</summary>
@@ -31,7 +33,19 @@ public sealed class SqlTravellerRepository(TripSideKickDbContext dbContext) : IT
         ArgumentNullException.ThrowIfNull(traveller);
 
         await dbContext.Travellers.AddAsync(traveller, cancellationToken).ConfigureAwait(false);
-        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            // A concurrent request already linked another traveller to this membership (the unique
+            // index on LinkedMembershipId enforces "one traveller per membership") - translate the
+            // raw unique-index violation into the same domain conflict the application-level
+            // check-then-act paths in TravellerService/InvitationService already raise.
+            throw new AlreadyMemberException("That traveller is already linked to a member.");
+        }
     }
 
     public async Task UpdateAsync(Traveller traveller, byte[] expectedRowVersion, CancellationToken cancellationToken = default)
@@ -51,6 +65,12 @@ public sealed class SqlTravellerRepository(TripSideKickDbContext dbContext) : IT
         {
             throw new ConcurrencyConflictException(
                 "The traveller was changed by someone else. Reload it and try again.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            // A concurrent request already linked this (or another) membership to the same
+            // traveller row - see AddAsync's comment for the same race on insert.
+            throw new AlreadyMemberException("That traveller is already linked to a member.");
         }
     }
 
