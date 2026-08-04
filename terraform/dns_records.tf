@@ -17,7 +17,7 @@ resource "cloudflare_dns_record" "app_service_verification" {
   zone_id = data.cloudflare_zone.zones[each.value.zone].zone_id
   name    = "asuid.${local.cloudflare_record_names[each.key]}"
   type    = "TXT"
-  ttl     = 300
+  ttl     = local.custom_domain_dns_ttl_seconds
   content = azurerm_linux_web_app.app.custom_domain_verification_id
   comment = "trip-side-kick ${var.environment} App Service custom domain verification"
 }
@@ -28,7 +28,7 @@ resource "cloudflare_dns_record" "web_app" {
   zone_id = data.cloudflare_zone.zones[each.value.zone].zone_id
   name    = local.cloudflare_record_names[each.key]
   type    = "CNAME"
-  ttl     = 300
+  ttl     = local.custom_domain_dns_ttl_seconds
   content = azurerm_linux_web_app.app.default_hostname
   proxied = false
   comment = "trip-side-kick ${var.environment} App Service ${each.value.surface} surface"

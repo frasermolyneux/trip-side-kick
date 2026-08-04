@@ -76,11 +76,15 @@ Terraform sequences the work so a first apply succeeds without manual interventi
 
 1. `cloudflare_dns_record.app_service_verification` (TXT) is created first.
 2. `cloudflare_dns_record.web_app` (CNAME) depends on the TXT record.
-3. `azurerm_app_service_custom_hostname_binding` depends on both.
-4. `time_sleep.wait_for_hostname_binding` waits 60s.
-5. `azurerm_app_service_managed_certificate` and then
+3. `time_sleep.wait_for_dns_propagation` waits 300s (matching the records' 300s TTL) after both
+   Cloudflare records exist, before the hostname binding is attempted. App Service validates the
+   custom hostname binding by resolving the `asuid` TXT record directly, and that lookup was racing
+   Cloudflare's propagation on a first apply - this wait closes that race.
+4. `azurerm_app_service_custom_hostname_binding` depends on that wait.
+5. `time_sleep.wait_for_hostname_binding` waits a further 60s.
+6. `azurerm_app_service_managed_certificate` and then
    `azurerm_app_service_certificate_binding` complete the TLS binding.
 
-Certificate issuance can still fail on a *first* apply if Cloudflare has not finished propagating
-(records are created with a 300s TTL). Re-running the apply is the supported remedy — every resource
+Certificate issuance can still occasionally fail on a *first* apply in the event Cloudflare
+propagation takes longer than 300s. Re-running the apply is the supported remedy - every resource
 is idempotent.

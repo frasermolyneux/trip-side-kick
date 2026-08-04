@@ -21,6 +21,11 @@ locals {
   # Cloudflare zones referenced by the configured custom domains.
   cloudflare_zone_names = toset([for domain in var.custom_domains : domain.zone])
 
+  # Single source of truth for the custom-domain DNS record TTL (dns_records.tf) so the
+  # first-apply propagation wait (time_sleep.wait_for_dns_propagation in web_app.tf) can't drift
+  # out of sync with it.
+  custom_domain_dns_ttl_seconds = 300
+
   # www aliases exist purely so the app can 308 them to the apex host; they are bound to the App
   # Service (so TLS terminates) but are never added to the host-routing allow lists.
   primary_domains = { for key, domain in var.custom_domains : key => domain if !domain.redirect }
