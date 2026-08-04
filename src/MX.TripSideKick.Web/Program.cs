@@ -39,6 +39,9 @@ builder.Services.AddOptions<ClientTelemetryOptions>()
 builder.Services.AddOptions<SecurityHeadersOptions>()
     .Bind(builder.Configuration.GetSection(SecurityHeadersOptions.SectionName));
 
+builder.Services.AddOptions<TestAuthOptions>()
+    .Bind(builder.Configuration.GetSection(TestAuthOptions.SectionName));
+
 // --- Modular monolith composition ------------------------------------------------------------
 builder.Services.AddTripSideKickApplication();
 builder.Services.AddTripSideKickInfrastructure(builder.Configuration);
@@ -219,6 +222,13 @@ app.MapRazorPages().RequireHost(siteHosts);
 // tripsidekick.app -> versioned API/BFF plus the React PWA shell.
 app.MapControllers().RequireHost(appHosts);
 app.MapOpenApi("/swagger/{documentName}/openapi.json").RequireHost(appHosts);
+
+// Deterministic sign-in for hermetic Playwright/E2E tests only - see TestAuthEndpoints' remarks
+// for the fail-closed gating (Development environment + explicit TestAuth:Enabled opt-in).
+// MapTestAuthEndpoints itself is a no-op unless both conditions hold, so this line never adds a
+// reachable route in a deployed environment.
+app.MapTestAuthEndpoints(app.Environment, app.Configuration, appHosts);
+
 app.MapFallbackToFile("index.html").RequireHost(appHosts);
 
 await app.RunAsync().ConfigureAwait(false);
