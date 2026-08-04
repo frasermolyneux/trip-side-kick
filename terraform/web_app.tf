@@ -80,6 +80,20 @@ resource "azurerm_linux_web_app" "app" {
   }
 }
 
+# First-apply propagation race: App Service validates the custom hostname binding by resolving the
+# asuid TXT record (and the CNAME) directly, and that lookup can run before Cloudflare has propagated
+# the just-created records. The records use a 300s TTL; 300s here is a defensible match for that TTL
+# without inflating apply time further - see docs/dns-and-custom-domains.md. A re-run remains the
+# ultimate fallback (every resource here is idempotent), but the goal is first-apply success.
+resource "time_sleep" "wait_for_dns_propagation" {
+  create_duration = "300s"
+
+  depends_on = [
+    cloudflare_dns_record.app_service_verification,
+    cloudflare_dns_record.web_app
+  ]
+}
+
 resource "azurerm_app_service_custom_hostname_binding" "domains" {
   for_each = var.custom_domains
 
@@ -88,8 +102,7 @@ resource "azurerm_app_service_custom_hostname_binding" "domains" {
   resource_group_name = azurerm_linux_web_app.app.resource_group_name
 
   depends_on = [
-    cloudflare_dns_record.app_service_verification,
-    cloudflare_dns_record.web_app
+    time_sleep.wait_for_dns_propagation
   ]
 }
 
