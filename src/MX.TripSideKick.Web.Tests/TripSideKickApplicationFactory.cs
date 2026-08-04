@@ -21,6 +21,14 @@ public sealed class TripSideKickApplicationFactory : WebApplicationFactory<Progr
     public const string SiteHost = "tripsidekick.test";
     public const string AppHost = "app.tripsidekick.test";
 
+    /// <summary>
+    /// Optional real SQL connection string (e.g. a Testcontainers SQL Server instance). When null
+    /// (the default), no <c>Sql:ConnectionString</c> is configured and the app falls back to the
+    /// in-memory Empty* repositories, exactly as it does today for the non-SQL integration tests.
+    /// Must be set before the host starts (i.e. before the first client/service is requested).
+    /// </summary>
+    public string? SqlConnectionStringOverride { get; set; }
+
     public HttpClient CreateClientFor(string host, bool allowAutoRedirect = false) =>
         CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -52,23 +60,32 @@ public sealed class TripSideKickApplicationFactory : WebApplicationFactory<Progr
 
         builder.UseEnvironment(Environments.Development);
 
-        builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(
-            new Dictionary<string, string?>
-            {
-                ["HostRouting:SiteHosts:0"] = SiteHost,
-                ["HostRouting:AppHosts:0"] = AppHost,
-                ["HostRouting:RedirectWwwToApex"] = "true",
-                ["ApplicationInsights:ClientConnectionString"] = string.Empty,
-                ["BlobStorage:ServiceUri"] = string.Empty,
+        builder.ConfigureAppConfiguration(configuration =>
+        {
+            configuration.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["HostRouting:SiteHosts:0"] = SiteHost,
+                    ["HostRouting:AppHosts:0"] = AppHost,
+                    ["HostRouting:RedirectWwwToApex"] = "true",
+                    ["ApplicationInsights:ClientConnectionString"] = string.Empty,
+                    ["BlobStorage:ServiceUri"] = string.Empty,
 
-                // Deterministic, non-secret placeholders so Microsoft.Identity.Web can bind its
-                // options at startup; no real Entra tenant is ever contacted in tests.
-                ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
-                ["AzureAd:TenantId"] = "00000000-0000-0000-0000-000000000000",
-                ["AzureAd:ClientId"] = "11111111-1111-1111-1111-111111111111",
-                ["AzureAd:CallbackPath"] = "/signin-oidc",
-                ["AzureAd:SignedOutCallbackPath"] = "/signout-callback-oidc"
-            }));
+                    // Deterministic, non-secret placeholders so Microsoft.Identity.Web can bind its
+                    // options at startup; no real Entra tenant is ever contacted in tests.
+                    ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
+                    ["AzureAd:TenantId"] = "00000000-0000-0000-0000-000000000000",
+                    ["AzureAd:ClientId"] = "11111111-1111-1111-1111-111111111111",
+                    ["AzureAd:CallbackPath"] = "/signin-oidc",
+                    ["AzureAd:SignedOutCallbackPath"] = "/signout-callback-oidc"
+                });
+
+            if (SqlConnectionStringOverride is { } connectionString)
+            {
+                configuration.AddInMemoryCollection(
+                    new Dictionary<string, string?> { ["Sql:ConnectionString"] = connectionString });
+            }
+        });
 
         // Swaps the default authenticate scheme for the test double above: requests with no
         // X-Test-Subject-Id header are anonymous, exactly like a visitor with no session cookie.
