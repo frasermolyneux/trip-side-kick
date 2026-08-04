@@ -18,7 +18,8 @@ export const handlers = [
   http.get('/v1/auth/me', () =>
     HttpResponse.json({
       isAuthenticated: false,
-      displayName: null
+      displayName: null,
+      subjectId: null
     })
   ),
   http.get('/v1/auth/antiforgery', () => HttpResponse.json({ token: 'test-antiforgery-token' }))

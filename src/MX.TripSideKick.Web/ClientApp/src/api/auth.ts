@@ -1,9 +1,10 @@
 export interface AuthMeResponse {
   isAuthenticated: boolean;
   displayName: string | null;
+  subjectId: string | null;
 }
 
-const anonymous: AuthMeResponse = { isAuthenticated: false, displayName: null };
+const anonymous: AuthMeResponse = { isAuthenticated: false, displayName: null, subjectId: null };
 
 /**
  * Reports the current sign-in state from the BFF session cookie. Never returns a token - the SPA
@@ -24,7 +25,8 @@ export async function fetchAuthMe(signal?: AbortSignal): Promise<AuthMeResponse>
 
   return {
     isAuthenticated: payload.isAuthenticated ?? false,
-    displayName: payload.displayName ?? null
+    displayName: payload.displayName ?? null,
+    subjectId: payload.subjectId ?? null
   };
 }
 
