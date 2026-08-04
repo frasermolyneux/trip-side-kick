@@ -27,8 +27,11 @@ namespace MX.TripSideKick.Web.Hosting;
 /// <c>terraform/web_app.tf</c> - "dev" here means the pre-production deployment slot, not the
 /// ASP.NET Core Development environment), and <c>TestAuth__Enabled</c> is never set by Terraform.
 /// This is proved by
-/// <c>MX.TripSideKick.Web.Tests.Hosting.TestAuthEndpointsTests</c> - it asserts the endpoint 404s
-/// both when the flag is unset and when the environment is not Development, even with the flag on.
+/// <c>MX.TripSideKick.Web.Tests.Hosting.TestAuthEndpointsTests</c>: when either condition doesn't
+/// hold, this method never maps the endpoint, so the request falls through to the app's SPA
+/// fallback route (<c>index.html</c>, HTTP 200) rather than the sign-in handler above - the
+/// fail-closed guarantee is that <em>no cookie is issued and the caller stays anonymous</em>
+/// (<c>/v1/auth/me</c> reports <c>isAuthenticated: false</c>), not a literal 404.
 /// </para>
 /// <para>
 /// On success, it signs the caller in via the <em>same</em> cookie authentication scheme

@@ -169,9 +169,12 @@ behaviour (authorization, `ICurrentUser.SubjectId`, invitation email-matching) i
 as it would be for a real signed-in user; only the *sign-in* step is faked.
 
 **The proof test:** `src/MX.TripSideKick.Web.Tests/Hosting/TestAuthEndpointsTests.cs` asserts the
-endpoint 404s in three scenarios — flag unset (any environment), flag `true` but environment not
-`Development`, and (as a positive control) flag `true` **and** environment `Development` actually
-maps and works — so a regression in either half of the gate is caught immediately. This is part of
+fail-closed guarantee in three scenarios — flag unset (any environment), flag `true` but environment
+not `Development`, and (as a positive control) flag `true` **and** environment `Development` actually
+maps and works. In the two negative scenarios the endpoint is never mapped, so the request falls
+through to the app's SPA fallback route (`index.html`, HTTP 200) rather than the sign-in handler —
+the guarantee that actually matters is that **no cookie is issued and the caller stays anonymous**
+(`/v1/auth/me` reports `isAuthenticated: false` in both cases), not a literal 404. This is part of
 the fast unit-test run (`dotnet test --filter "FullyQualifiedName!~IntegrationTests"`), so it runs
 on every PR without needing Docker.
 

@@ -28,9 +28,18 @@ public sealed class SecurityHeadersOptions
             // 'unsafe-inline' is required here (not just for style-src-elem/<style> tags): MUI's
             // Popper-based components (Select, Menu, Autocomplete, Tooltip, Dialog, Snackbar
             // transitions) position and animate themselves by writing directly to `element.style`
-            // from JS. CSP nonces only cover <style>/<link> elements, never inline style attribute
-            // mutations, so without this every MUI popover/dropdown silently fails to render -
-            // discovered via Playwright E2E when the invite-role MUI <Select> dropdown never opened.
+            // from JS. CSP nonces only ever cover <style>/<link> element emission (e.g. an Emotion
+            // cache nonce), never inline `style` *attribute* mutations - so a nonce-based approach
+            // would not let us remove 'unsafe-inline' for this specific case, only for injected
+            // <style> tags. Without this directive every MUI popover/dropdown silently fails to
+            // render - discovered via Playwright E2E when the invite-role MUI <Select> dropdown
+            // never opened.
+            //
+            // Accepted, deliberate risk: this widens the CSP to allow attacker-controlled inline
+            // styles (a UI-redress/clickjacking-style vector even with script-src locked down),
+            // in exchange for the app's UI framework actually rendering. script-src has no
+            // 'unsafe-inline' and stays fully locked down, which is what stops script injection -
+            // the primary XSS vector. See docs/testing.md for the fuller writeup.
             Directive("style-src", "'self' 'unsafe-inline'", StyleSources, "https://fonts.googleapis.com"),
             Directive("img-src", "'self' data: blob:", ImageSources, "https://maps.gstatic.com", "https://maps.googleapis.com"),
             Directive("font-src", "'self'", FontSources, "https://fonts.gstatic.com"),

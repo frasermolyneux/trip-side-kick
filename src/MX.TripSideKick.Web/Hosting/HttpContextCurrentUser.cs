@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Security.Claims;
 
 using MX.TripSideKick.Application.Abstractions;
@@ -39,9 +40,10 @@ public sealed class HttpContextCurrentUser : ICurrentUser
 
     /// <summary>
     /// Reads the verified email claim. Entra External ID emits this as either <c>email</c> (the
-    /// modern v2.0 claim) or, for some external identity providers, <c>emails</c> (a JSON array
-    /// claim, of which the first value is used). Falls back to <c>preferred_username</c> only when
-    /// it looks like an email address, since some flows put the email there instead.
+    /// modern v2.0 claim, a plain string) or, for some external identity providers, <c>emails</c>
+    /// (a legacy v1.0-style claim whose value is a JSON array, e.g. <c>["a@b.com"]</c> - the first
+    /// non-empty element is used). Falls back to <c>preferred_username</c> only when it looks like
+    /// an email address, since some flows put the email there instead.
     /// </summary>
     public string? VerifiedEmail
     {
@@ -53,7 +55,7 @@ public sealed class HttpContextCurrentUser : ICurrentUser
             }
 
             var email = principal.FindFirstValue("email")
-                ?? principal.FindFirstValue("emails")
+                ?? ExtractFirstFromJsonArrayClaim(principal.FindFirstValue("emails"))
                 ?? principal.FindFirstValue(ClaimTypes.Email);
 
             if (!string.IsNullOrWhiteSpace(email))
@@ -65,6 +67,31 @@ public sealed class HttpContextCurrentUser : ICurrentUser
             return preferredUsername is { Length: > 0 } candidate && candidate.Contains('@', StringComparison.Ordinal)
                 ? candidate
                 : null;
+        }
+    }
+
+    /// <summary>
+    /// The <c>emails</c> claim, when present, is a JSON array (e.g. <c>["a@b.com","b@c.com"]</c>),
+    /// not a plain string - reading it with <see cref="ClaimsPrincipal.FindFirstValue"/> directly
+    /// would return the raw JSON text, which never matches an invited email string. Parses the
+    /// array and returns its first non-empty element, falling back to the raw claim value if it
+    /// isn't valid JSON (defensive - some providers may emit a plain string under this claim type).
+    /// </summary>
+    private static string? ExtractFirstFromJsonArrayClaim(string? rawClaimValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawClaimValue))
+        {
+            return null;
+        }
+
+        try
+        {
+            var emails = System.Text.Json.JsonSerializer.Deserialize<string[]>(rawClaimValue);
+            return emails?.FirstOrDefault(e => !string.IsNullOrWhiteSpace(e));
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return rawClaimValue;
         }
     }
 }

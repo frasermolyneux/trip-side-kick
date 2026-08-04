@@ -33,7 +33,7 @@ public sealed class TripSideKickDbContextFactory : IDesignTimeDbContextFactory<T
 
         var optionsBuilder = new DbContextOptionsBuilder<TripSideKickDbContext>();
         optionsBuilder.UseSqlServer(string.IsNullOrWhiteSpace(connectionString)
-            ? "Server=localhost;Database=TripSideKick;User Id=sa;******;TrustServerCertificate=true;"
+            ? "Server=localhost;Database=TripSideKick;User Id=sa;Password=Development-Only-Placeholder1!;TrustServerCertificate=true;"
             : connectionString);
 
         return new TripSideKickDbContext(optionsBuilder.Options);
