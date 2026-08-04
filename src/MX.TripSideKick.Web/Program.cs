@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -19,6 +20,7 @@ using MX.TripSideKick.Application.Abstractions;
 using MX.TripSideKick.Infrastructure;
 using MX.TripSideKick.Infrastructure.Options;
 using MX.TripSideKick.Web;
+using MX.TripSideKick.Web.ExceptionHandling;
 using MX.TripSideKick.Web.Hosting;
 using MX.TripSideKick.Web.Options;
 
@@ -96,6 +98,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddOpenApi("v1");
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 // Same-origin, secure-by-default cookies ready for the identity slice.
 //
@@ -153,9 +156,17 @@ app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+// The registered ApiExceptionHandler (above) turns known application/domain exceptions into
+// ProblemDetails responses for /v1 API calls regardless of environment; anything it doesn't
+// recognise falls through to the Razor error page outside Development (never wired up locally,
+// so unhandled exceptions still surface as stack traces during development).
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    ExceptionHandlingPath = app.Environment.IsDevelopment() ? null : "/Error"
+});
 
 // Deny-by-default host validation and www -> apex canonicalisation. Runs before HTTPS redirection so
 // that a redirect Location is never built from an unrecognised Host header.
