@@ -1,4 +1,4 @@
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 import { Box, Button, CircularProgress, List, ListItemButton, ListItemText, Typography } from '@mui/material';
 
 import { useTrips } from '../queries/trips';

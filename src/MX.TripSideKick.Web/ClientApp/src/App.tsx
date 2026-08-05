@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, Link as RouterLink } from 'react-router-dom';
+import { Navigate, Route, Routes, Link as RouterLink } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppBar, Box, Container, CssBaseline, Toolbar, Typography } from '@mui/material';
 import { format } from 'date-fns';

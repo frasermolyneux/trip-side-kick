@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { Alert, Box, Button, Typography } from '@mui/material';
 
 import { useAuth } from '../auth/AuthContext';
