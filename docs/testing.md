@@ -150,17 +150,24 @@ Chosen over `ClientApp/e2e` or a `MX.TripSideKick.Web.Tests`-adjacent folder bec
 ### Deterministic test auth — the security-sensitive control
 
 `src/MX.TripSideKick.Web/Hosting/TestAuthEndpoints.cs` maps `GET /testauth/signin?sub=...&email=...&name=...`
-and `POST /testauth/signout` **only when both**:
+and `POST /testauth/signout` **only when all** of the following hold:
 
-1. `IWebHostEnvironment.IsDevelopment()` is true, **and**
-2. `TestAuth:Enabled` (bound from `TestAuthOptions`) is explicitly `true`.
+1. `IWebHostEnvironment.IsDevelopment()` is true,
+2. `TestAuth:Enabled` (bound from `TestAuthOptions`) is explicitly `true`, **and**
+3. the process is **not** running as an Azure App Service instance (the `WEBSITE_INSTANCE_ID` app
+   setting — which Azure App Service always injects, and which Terraform never sets — is absent).
 
-Neither is ever true in a deployed environment: `ASPNETCORE_ENVIRONMENT=Production` is set for both
-the dev and prd App Services (`terraform/web_app.tf` — "dev" there means the pre-production
-deployment slot, not the ASP.NET Core `Development` environment), and `TestAuth__Enabled` is never
-set by any Terraform app setting. **Both conditions must independently fail closed** — a single
-misconfiguration (e.g. someone accidentally setting `TestAuth__Enabled=true` in prod app settings)
-still cannot expose the endpoint, because the environment check also has to pass.
+**Condition 1 alone is not a reliable deployed-environment signal.** `terraform/web_app.tf` sets
+`ASPNETCORE_ENVIRONMENT=Development` (not `Production`) for the **dev** App Service slot — "dev"
+there means the pre-production deployment environment, not the ASP.NET Core hosting environment
+name. That makes `IsDevelopment()` true on a real, internet-reachable, custom-domain-bound App
+Service, so without condition 3 only `TestAuth:Enabled` (never set by Terraform for either `dev` or
+`prd`) would stand between that slot and a full authentication bypass — a single misconfiguration
+away from being live. Condition 3 restores a second, genuinely independent barrier: it is always
+true when hosted in Azure App Service (dev *or* prd) regardless of `ASPNETCORE_ENVIRONMENT`, and
+always false for a local developer run, a CI job, or the Playwright harness's spawned child
+process — none of which are Azure App Service instances. `prd` additionally never sets
+`ASPNETCORE_ENVIRONMENT=Development` at all, so condition 1 fails there independently too.
 
 On success, it signs the caller in via the **same** cookie authentication scheme
 (`CookieAuthenticationDefaults.AuthenticationScheme`) and the same claim shapes
@@ -169,14 +176,16 @@ behaviour (authorization, `ICurrentUser.SubjectId`, invitation email-matching) i
 as it would be for a real signed-in user; only the *sign-in* step is faked.
 
 **The proof test:** `src/MX.TripSideKick.Web.Tests/Hosting/TestAuthEndpointsTests.cs` asserts the
-fail-closed guarantee in three scenarios — flag unset (any environment), flag `true` but environment
-not `Development`, and (as a positive control) flag `true` **and** environment `Development` actually
-maps and works. In the two negative scenarios the endpoint is never mapped, so the request falls
+fail-closed guarantee across four scenarios — flag unset (any environment), flag `true` but
+environment not `Development` (the `prd`-shaped case), flag `true` **and** environment `Development`
+**but** `WEBSITE_INSTANCE_ID` set (the real `dev`-App-Service-shaped case), and (as a positive
+control) flag `true` **and** environment `Development` **and** no `WEBSITE_INSTANCE_ID` actually
+maps and works. In the three negative scenarios the endpoint is never mapped, so the request falls
 through to the app's SPA fallback route (`index.html`, HTTP 200) rather than the sign-in handler —
 the guarantee that actually matters is that **no cookie is issued and the caller stays anonymous**
-(`/v1/auth/me` reports `isAuthenticated: false` in both cases), not a literal 404. This is part of
-the fast unit-test run (`dotnet test --filter "FullyQualifiedName!~IntegrationTests"`), so it runs
-on every PR without needing Docker.
+(`/v1/auth/me` reports `isAuthenticated: false` in every negative case), not a literal 404. This is
+part of the fast unit-test run (`dotnet test --filter "FullyQualifiedName!~IntegrationTests"`), so
+it runs on every PR without needing Docker.
 
 The Playwright harness opts in explicitly and only for its own spawned app process
 (`tests/e2e/support/appProcess.ts`'s `startApp`): `ASPNETCORE_ENVIRONMENT=Development` and

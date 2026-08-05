@@ -14,9 +14,9 @@ namespace MX.TripSideKick.Web.Tests.Hosting;
 
 /// <summary>
 /// Proves the Playwright/E2E-only <see cref="TestAuthEndpoints"/> sign-in endpoint is fail-closed:
-/// unreachable unless both the ASP.NET Core environment is Development <em>and</em>
-/// <c>TestAuth:Enabled</c> is explicitly <c>true</c>. This is the security-sensitive control the
-/// spec calls out - see docs/testing.md.
+/// unreachable unless the ASP.NET Core environment is Development, <c>TestAuth:Enabled</c> is
+/// explicitly <c>true</c>, <em>and</em> the process is not running as an Azure App Service instance.
+/// This is the security-sensitive control the spec calls out - see docs/testing.md.
 /// </summary>
 public sealed class TestAuthEndpointsTests : IClassFixture<TripSideKickApplicationFactory>
 {
@@ -52,15 +52,49 @@ public sealed class TestAuthEndpointsTests : IClassFixture<TripSideKickApplicati
     {
         using var productionFactory = factory.WithWebHostBuilder(builder =>
         {
-            // Deployed environments run ASPNETCORE_ENVIRONMENT=Production - proving the endpoint
-            // stays unmapped there even if TestAuth:Enabled were somehow set is the point of this
-            // test: two independent conditions must both hold, not just one.
+            // prd runs ASPNETCORE_ENVIRONMENT=Production - proving the endpoint stays unmapped
+            // there even if TestAuth:Enabled were somehow set is the point of this test.
             builder.UseEnvironment(Environments.Production);
             builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(
                 new Dictionary<string, string?> { ["TestAuth:Enabled"] = "true" }));
         });
 
         using var client = productionFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri($"https://{TripSideKickApplicationFactory.AppHost}/")
+        });
+
+        var response = await client.GetAsync(new Uri($"{TestAuthEndpoints.SignInPath}?sub=test-subject", UriKind.Relative));
+
+        Assert.False(response.Headers.Contains("Set-Cookie"));
+
+        var meResponse = await client.GetAsync(new Uri("/v1/auth/me", UriKind.Relative));
+        var me = await meResponse.Content.ReadAsStringAsync();
+        Assert.Contains("\"isAuthenticated\":false", me, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Signin_endpoint_is_unreachable_when_running_as_an_Azure_App_Service_instance_even_when_enabled_in_Development()
+    {
+        // The dev App Service slot actually runs ASPNETCORE_ENVIRONMENT=Development (see
+        // terraform/web_app.tf - "dev" there means the pre-production deployment slot, not the
+        // ASP.NET Core hosting environment), so IsDevelopment() alone cannot be trusted to keep
+        // this endpoint off a real, internet-reachable App Service instance. This test proves the
+        // WEBSITE_INSTANCE_ID gate - the setting Azure App Service always injects, which Terraform
+        // never sets - independently keeps the endpoint unmapped even when both the environment is
+        // Development and TestAuth:Enabled is true.
+        using var appServiceFactory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment(Environments.Development);
+            builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["TestAuth:Enabled"] = "true",
+                    ["WEBSITE_INSTANCE_ID"] = "some-app-service-instance-id"
+                }));
+        });
+
+        using var client = appServiceFactory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri($"https://{TripSideKickApplicationFactory.AppHost}/")
         });

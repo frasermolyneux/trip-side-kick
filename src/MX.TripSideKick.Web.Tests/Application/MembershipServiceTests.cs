@@ -17,7 +17,7 @@ public sealed class MembershipServiceTests
     public MembershipServiceTests()
     {
         var membershipAccess = new MembershipAccessService(membershipRepository.Object);
-        sut = new MembershipService(membershipRepository.Object, membershipAccess);
+        sut = new MembershipService(membershipRepository.Object, membershipAccess, new PassthroughUnitOfWork());
     }
 
     [Fact]

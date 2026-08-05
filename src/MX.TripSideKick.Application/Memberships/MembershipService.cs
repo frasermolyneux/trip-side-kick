@@ -9,12 +9,16 @@ namespace MX.TripSideKick.Application.Memberships;
 /// change roles; Editors manage content, not membership; signed-in Viewers cannot mutate anything;
 /// the last Owner can never leave, be removed, or be demoted (<see cref="MembershipPolicy"/>).
 /// </summary>
-public sealed class MembershipService(IMembershipRepository membershipRepository, MembershipAccessService membershipAccess)
+public sealed class MembershipService(
+    IMembershipRepository membershipRepository,
+    MembershipAccessService membershipAccess,
+    IUnitOfWork unitOfWork)
 {
     private readonly IMembershipRepository membershipRepository = membershipRepository
         ?? throw new ArgumentNullException(nameof(membershipRepository));
     private readonly MembershipAccessService membershipAccess = membershipAccess
         ?? throw new ArgumentNullException(nameof(membershipAccess));
+    private readonly IUnitOfWork unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
 
     /// <summary>Lists members. Any member (including Viewers) may see who else is on the trip.</summary>
     public async Task<IReadOnlyList<Membership>> ListMembersAsync(
@@ -37,15 +41,22 @@ public sealed class MembershipService(IMembershipRepository membershipRepository
 
         await membershipAccess.RequireRoleAsync(tripId, actingSubjectId, MembershipRole.Owner, cancellationToken).ConfigureAwait(false);
 
-        var members = await membershipRepository.ListForTripAsync(tripId, cancellationToken).ConfigureAwait(false);
-        var target = members.FirstOrDefault(m => m.Id == targetMembershipId)
-            ?? throw new NotFoundException("Member not found on this trip.");
+        // Serializable: the last-Owner invariant spans every membership row on the trip, so the
+        // read (list members) and the write (this role change) must be isolated as one unit from
+        // any concurrent change/removal targeting a *different* row - otherwise two concurrent
+        // requests can each observe "another Owner exists" and both commit, leaving zero Owners.
+        return await unitOfWork.ExecuteSerializableAsync(async ct =>
+        {
+            var members = await membershipRepository.ListForTripAsync(tripId, ct).ConfigureAwait(false);
+            var target = members.FirstOrDefault(m => m.Id == targetMembershipId)
+                ?? throw new NotFoundException("Member not found on this trip.");
 
-        MembershipPolicy.EnsureRoleChangeAllowed(members, target, newRole);
+            MembershipPolicy.EnsureRoleChangeAllowed(members, target, newRole);
 
-        target.ChangeRole(newRole);
-        await membershipRepository.UpdateAsync(target, expectedRowVersion, cancellationToken).ConfigureAwait(false);
-        return target;
+            target.ChangeRole(newRole);
+            await membershipRepository.UpdateAsync(target, expectedRowVersion, ct).ConfigureAwait(false);
+            return target;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Removes a member from the trip. Owner-only. Blocked if the target is the last Owner.</summary>
@@ -66,14 +77,18 @@ public sealed class MembershipService(IMembershipRepository membershipRepository
         await RemoveCoreAsync(tripId, membership.Id, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task RemoveCoreAsync(TripId tripId, MembershipId targetMembershipId, CancellationToken cancellationToken)
-    {
-        var members = await membershipRepository.ListForTripAsync(tripId, cancellationToken).ConfigureAwait(false);
-        var target = members.FirstOrDefault(m => m.Id == targetMembershipId)
-            ?? throw new NotFoundException("Member not found on this trip.");
+    private Task RemoveCoreAsync(TripId tripId, MembershipId targetMembershipId, CancellationToken cancellationToken) =>
+        // See the comment in ChangeRoleAsync: the last-Owner invariant spans every membership row,
+        // so the read-check-write here must also be serializable against concurrent
+        // removals/demotions targeting other rows on the same trip.
+        unitOfWork.ExecuteSerializableAsync(async ct =>
+        {
+            var members = await membershipRepository.ListForTripAsync(tripId, ct).ConfigureAwait(false);
+            var target = members.FirstOrDefault(m => m.Id == targetMembershipId)
+                ?? throw new NotFoundException("Member not found on this trip.");
 
-        MembershipPolicy.EnsureRemovalAllowed(members, target);
+            MembershipPolicy.EnsureRemovalAllowed(members, target);
 
-        await membershipRepository.RemoveAsync(target, cancellationToken).ConfigureAwait(false);
-    }
+            await membershipRepository.RemoveAsync(target, ct).ConfigureAwait(false);
+        }, cancellationToken);
 }

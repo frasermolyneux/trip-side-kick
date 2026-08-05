@@ -24,4 +24,20 @@ public sealed class NoOpUnitOfWork : IUnitOfWork
 
         return operation(cancellationToken);
     }
+
+    public Task<TResult> ExecuteSerializableAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        return operation(cancellationToken);
+    }
+
+    public Task ExecuteSerializableAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        return operation(cancellationToken);
+    }
 }

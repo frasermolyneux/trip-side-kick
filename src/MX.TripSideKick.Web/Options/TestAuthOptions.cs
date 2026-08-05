@@ -11,9 +11,10 @@ public sealed class TestAuthOptions
     /// <summary>
     /// Must be explicitly set to <c>true</c> - defaults to <c>false</c> and is never set by any
     /// deployed environment's Terraform/app settings. Even when <c>true</c>, the endpoint is only
-    /// mapped when the ASP.NET Core environment is <c>Development</c> (see
-    /// <c>TestAuthEndpoints.MapTestAuthEndpoints</c>) - both conditions are required, so a single
-    /// misconfiguration cannot expose it.
+    /// mapped when the ASP.NET Core environment is <c>Development</c> <em>and</em> the process is
+    /// not running as an Azure App Service instance (see
+    /// <c>TestAuthEndpoints.MapTestAuthEndpoints</c> for why the environment check alone is not
+    /// sufficient) - all conditions are required, so a single misconfiguration cannot expose it.
     /// </summary>
     public bool Enabled { get; set; }
 }

@@ -276,9 +276,9 @@ app.MapControllers().RequireHost(appHosts);
 app.MapOpenApi("/swagger/{documentName}/openapi.json").RequireHost(appHosts);
 
 // Deterministic sign-in for hermetic Playwright/E2E tests only - see TestAuthEndpoints' remarks
-// for the fail-closed gating (Development environment + explicit TestAuth:Enabled opt-in).
-// MapTestAuthEndpoints itself is a no-op unless both conditions hold, so this line never adds a
-// reachable route in a deployed environment.
+// for the fail-closed gating (Development environment + explicit TestAuth:Enabled opt-in + not
+// running as an Azure App Service instance). MapTestAuthEndpoints itself is a no-op unless every
+// condition holds, so this line never adds a reachable route in a deployed environment.
 app.MapTestAuthEndpoints(app.Environment, app.Configuration, appHosts);
 
 app.MapFallbackToFile("index.html").RequireHost(appHosts);
