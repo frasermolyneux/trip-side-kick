@@ -78,12 +78,8 @@ public sealed class TripLifecycleIntegrationTests : IDisposable
         Assert.Equal(HttpStatusCode.OK, firstUpdate.StatusCode);
 
         // Retrying the *original* (now-stale) ETag must be refused, not silently applied.
-        using var request = new HttpRequestMessage(HttpMethod.Put, $"/v1/trips/{trip.Id}")
-        {
-            Content = JsonContent.Create(new UpdateTripRequest("Stale rename", null, null, null, null))
-        };
-        request.Headers.TryAddWithoutValidation("If-Match", trip.ETag);
-        using var staleUpdate = await owner.SendAsync(request);
+        using var staleUpdate = await owner.PutAsJsonWithAntiforgeryAsync(
+            $"/v1/trips/{trip.Id}", new UpdateTripRequest("Stale rename", null, null, null, null), trip.ETag);
 
         Assert.Equal(HttpStatusCode.Conflict, staleUpdate.StatusCode);
     }
@@ -94,11 +90,8 @@ public sealed class TripLifecycleIntegrationTests : IDisposable
         using var owner = factory.CreateAuthenticatedClientFor(TripSideKickApplicationFactory.AppHost, "owner-4", "Owner");
         var trip = await CreateTripAsync(owner, "No if-match trip");
 
-        using var request = new HttpRequestMessage(HttpMethod.Put, $"/v1/trips/{trip.Id}")
-        {
-            Content = JsonContent.Create(new UpdateTripRequest("Renamed without header", null, null, null, null))
-        };
-        using var response = await owner.SendAsync(request);
+        using var response = await owner.PutAsJsonWithAntiforgeryAsync(
+            $"/v1/trips/{trip.Id}", new UpdateTripRequest("Renamed without header", null, null, null, null), ifMatch: null);
 
         Assert.Equal((HttpStatusCode)StatusCodes.Status428PreconditionRequired, response.StatusCode);
     }
@@ -120,15 +113,8 @@ public sealed class TripLifecycleIntegrationTests : IDisposable
         return (await response.Content.ReadFromJsonAsync<TripResponse>())!;
     }
 
-    private static Task<HttpResponseMessage> SendUpdateAsync(HttpClient client, TripResponse trip, string newName)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/v1/trips/{trip.Id}")
-        {
-            Content = JsonContent.Create(new UpdateTripRequest(newName, null, null, null, null))
-        };
-        request.Headers.TryAddWithoutValidation("If-Match", trip.ETag);
-        return client.SendAsync(request);
-    }
+    private static Task<HttpResponseMessage> SendUpdateAsync(HttpClient client, TripResponse trip, string newName) =>
+        client.PutAsJsonWithAntiforgeryAsync($"/v1/trips/{trip.Id}", new UpdateTripRequest(newName, null, null, null, null), trip.ETag);
 
     /// <summary>
     /// Adds a member without going through the invitation flow (that flow is covered separately in

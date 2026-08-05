@@ -37,6 +37,7 @@ public sealed class MembersController(MembershipService membershipService, ICurr
 
     /// <summary>Changes a member's role. Owner-only. Blocked if it would demote the last Owner.</summary>
     [HttpPut("{membershipId:guid}/role")]
+    [ValidateAntiForgeryToken]
     public async Task<ActionResult<MembershipResponse>> ChangeRole(
         Guid tripId, Guid membershipId, [FromBody] ChangeRoleRequest request, CancellationToken cancellationToken)
     {
@@ -61,6 +62,7 @@ public sealed class MembersController(MembershipService membershipService, ICurr
 
     /// <summary>Removes a member from the trip. Owner-only. Blocked if the target is the last Owner.</summary>
     [HttpDelete("{membershipId:guid}")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Remove(Guid tripId, Guid membershipId, CancellationToken cancellationToken)
     {
         await membershipService

@@ -58,6 +58,7 @@ public sealed class TravellersController(TravellerService travellerService, ICur
     /// Owner can do this and keeps ownership of the trip.
     /// </summary>
     [HttpDelete("self")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> UnlinkSelf(Guid tripId, CancellationToken cancellationToken)
     {
         await travellerService

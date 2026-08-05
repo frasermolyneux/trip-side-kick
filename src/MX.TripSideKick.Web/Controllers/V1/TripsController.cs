@@ -67,6 +67,7 @@ public sealed class TripsController(TripPlanningService tripPlanningService, ICu
     /// silently overwriting someone else's change.
     /// </summary>
     [HttpPut("{tripId:guid}")]
+    [ValidateAntiForgeryToken]
     public async Task<ActionResult<TripResponse>> Update(
         Guid tripId, [FromBody] UpdateTripRequest request, CancellationToken cancellationToken)
     {

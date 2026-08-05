@@ -34,6 +34,31 @@ internal static class AntiforgeryHttpClientExtensions
         return await client.SendAsync(request);
     }
 
+    public static async Task<HttpResponseMessage> PutAsJsonWithAntiforgeryAsync<TValue>(
+        this HttpClient client, string requestUri, TValue value, string? ifMatch = null)
+    {
+        var token = await client.FetchAntiforgeryTokenAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Put, requestUri)
+        {
+            Content = JsonContent.Create(value)
+        };
+        request.Headers.Add("X-CSRF-TOKEN", token);
+        if (ifMatch is not null)
+        {
+            request.Headers.TryAddWithoutValidation("If-Match", ifMatch);
+        }
+
+        return await client.SendAsync(request);
+    }
+
+    public static async Task<HttpResponseMessage> DeleteWithAntiforgeryAsync(this HttpClient client, string requestUri)
+    {
+        var token = await client.FetchAntiforgeryTokenAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Delete, requestUri);
+        request.Headers.Add("X-CSRF-TOKEN", token);
+        return await client.SendAsync(request);
+    }
+
     private static async Task<string> FetchAntiforgeryTokenAsync(this HttpClient client)
     {
         using var tokenResponse = await client.GetAsync(new Uri("/v1/auth/antiforgery", UriKind.Relative));

@@ -53,7 +53,7 @@ public sealed class MembershipRoleMatrixIntegrationTests : IDisposable
         using var owner = factory.CreateAuthenticatedClientFor(TripSideKickApplicationFactory.AppHost, "owner-c", "Owner");
         var (tripId, ownerMembership) = await CreateTripAsync(owner, "Role matrix trip C");
 
-        using var removeResponse = await owner.DeleteAsync(new Uri($"/v1/trips/{tripId}/members/{ownerMembership.Id}", UriKind.Relative));
+        using var removeResponse = await owner.DeleteWithAntiforgeryAsync($"/v1/trips/{tripId}/members/{ownerMembership.Id}");
         Assert.Equal(HttpStatusCode.Conflict, removeResponse.StatusCode);
 
         using var leaveResponse = await owner.PostWithAntiforgeryAsync($"/v1/trips/{tripId}/members/leave");
@@ -86,7 +86,7 @@ public sealed class MembershipRoleMatrixIntegrationTests : IDisposable
         using var listResponse = await viewerClient.GetAsync(new Uri($"/v1/trips/{tripId}/members", UriKind.Relative));
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
 
-        using var removeResponse = await viewerClient.DeleteAsync(new Uri($"/v1/trips/{tripId}/members/{viewer.Id}", UriKind.Relative));
+        using var removeResponse = await viewerClient.DeleteWithAntiforgeryAsync($"/v1/trips/{tripId}/members/{viewer.Id}");
         Assert.Equal(HttpStatusCode.Forbidden, removeResponse.StatusCode);
     }
 
@@ -121,14 +121,20 @@ public sealed class MembershipRoleMatrixIntegrationTests : IDisposable
         return (await acceptResponse.Content.ReadFromJsonAsync<MembershipResponse>())!;
     }
 
-    private static Task<HttpResponseMessage> SendChangeRoleAsync(
+    private static async Task<HttpResponseMessage> SendChangeRoleAsync(
         HttpClient client, Guid tripId, Guid membershipId, string eTag, MembershipRole newRole)
     {
+        var token = await client.GetAsync(new Uri("/v1/auth/antiforgery", UriKind.Relative));
+        var payload = await token.Content.ReadFromJsonAsync<AntiforgeryTokenPayload>();
+
         var request = new HttpRequestMessage(HttpMethod.Put, $"/v1/trips/{tripId}/members/{membershipId}/role")
         {
             Content = JsonContent.Create(new ChangeRoleRequest(newRole))
         };
         request.Headers.TryAddWithoutValidation("If-Match", eTag);
-        return client.SendAsync(request);
+        request.Headers.Add("X-CSRF-TOKEN", payload!.Token);
+        return await client.SendAsync(request);
     }
+
+    private sealed record AntiforgeryTokenPayload(string Token);
 }
