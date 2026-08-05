@@ -4,6 +4,20 @@ import { BASE_URL } from '../support/env.ts';
 import { signInAs, TEST_IDENTITIES } from '../support/testAuth.ts';
 
 /**
+ * Mutating `/v1` endpoints are guarded by `[ValidateAntiForgeryToken]` (see `AuthController`'s
+ * `GET /v1/auth/antiforgery`). Tests that drive the UI get this for free (the SPA's `apiClient`
+ * attaches it automatically), but the handful of direct `page.request` calls below - used to prove
+ * that authorization is enforced server-side, not just hidden in the UI - must fetch and echo the
+ * token back themselves, or every one of them fails antiforgery validation (400) before ever
+ * reaching the authorization check it's meant to exercise.
+ */
+async function csrfHeader(page: Page): Promise<{ 'X-CSRF-TOKEN': string }> {
+  const response = await page.request.get(`${BASE_URL}/v1/auth/antiforgery`);
+  const { token } = await response.json();
+  return { 'X-CSRF-TOKEN': token };
+}
+
+/**
  * Core Journey 1 ("start a trip") + Journey 2 ("plan together": membership, roles, invitations)
  * flow, driven entirely through the UI plus a handful of direct `/v1` API calls used only to prove
  * that role authorization is enforced server-side (not just hidden in the UI). Each identity gets
@@ -146,7 +160,7 @@ test.describe.serial('Journey 1 & 2: start a trip, invite, accept, enforce roles
 
     const forbidden = await page.request.put(
       `${BASE_URL}/v1/trips/${tripId}/members/${viewerMembership.id}/role`,
-      { data: { role: 1 }, headers: { 'If-Match': viewerMembership.eTag } }
+      { data: { role: 1 }, headers: { 'If-Match': viewerMembership.eTag, ...(await csrfHeader(page)) } }
     );
     expect(forbidden.status()).toBe(403);
 
@@ -172,7 +186,7 @@ test.describe.serial('Journey 1 & 2: start a trip, invite, accept, enforce roles
         dates: trip.dates,
         coverImageUrl: trip.coverImageUrl
       },
-      headers: { 'If-Match': trip.eTag }
+      headers: { 'If-Match': trip.eTag, ...(await csrfHeader(page)) }
     });
     expect(forbiddenEdit.status()).toBe(403);
 
@@ -198,12 +212,15 @@ test.describe.serial('Journey 1 & 2: start a trip, invite, accept, enforce roles
     // Server-side proof: attempting to demote the last Owner via the API is refused (409).
     const demote = await ownerPage.request.put(
       `${BASE_URL}/v1/trips/${tripId}/members/${ownerMembership.id}/role`,
-      { data: { role: 1 }, headers: { 'If-Match': ownerMembership.eTag } }
+      { data: { role: 1 }, headers: { 'If-Match': ownerMembership.eTag, ...(await csrfHeader(ownerPage)) } }
     );
     expect(demote.status()).toBe(409);
 
     // ... and removal is refused the same way.
-    const remove = await ownerPage.request.delete(`${BASE_URL}/v1/trips/${tripId}/members/${ownerMembership.id}`);
+    const remove = await ownerPage.request.delete(
+      `${BASE_URL}/v1/trips/${tripId}/members/${ownerMembership.id}`,
+      { headers: await csrfHeader(ownerPage) }
+    );
     expect(remove.status()).toBe(409);
   });
 });
