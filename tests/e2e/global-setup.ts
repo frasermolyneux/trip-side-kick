@@ -1,7 +1,7 @@
 import type { FullConfig } from '@playwright/test';
 
 import { HTTP_BASE_URL } from './support/env.ts';
-import { restoreDotnetTools, restoreSolution, applyMigrations } from './support/migrate.ts';
+import { restoreDotnetTools, restoreSolution, buildForMigrations, applyMigrations } from './support/migrate.ts';
 import { startSqlContainer, buildConnectionString } from './support/sqlContainer.ts';
 import { ensureAppPublished, ensureDevCertificate, startApp, stopApp, waitForHealthy } from './support/appProcess.ts';
 
@@ -29,6 +29,9 @@ export default async function globalSetup(_config: FullConfig): Promise<() => Pr
   console.log('[global-setup] Starting ephemeral SQL Server container...');
   const container = await startSqlContainer();
   const connectionString = buildConnectionString(container);
+
+  console.log('[global-setup] Building MX.TripSideKick.Web (skipping the client bundle - not needed for migrations)...');
+  await buildForMigrations();
 
   console.log('[global-setup] Applying EF Core migrations...');
   await applyMigrations(connectionString);

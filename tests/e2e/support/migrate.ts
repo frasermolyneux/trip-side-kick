@@ -15,7 +15,21 @@ import {
  * `dbContext.Database.MigrateAsync()` approach used by the .NET integration tests - appropriate
  * for a throwaway database, unlike the CI deploy workflows' idempotent-script mechanism (see
  * docs/data-and-persistence.md), which targets a real, persistent Azure SQL database.
+ *
+ * `dotnet ef` performs its own implicit build of the startup project (`MX.TripSideKick.Web`)
+ * before it can load the design-time `DbContext` factory. On a fresh checkout, that implicit
+ * build also triggers the Web project's `BuildClient` MSBuild target (a full `npm ci` + `npm run
+ * build` of `ClientApp`) - work migrations don't need, that duplicates `ensureAppPublished`'s own
+ * client build, and whose failures `dotnet ef` swallows down to an unhelpful "Build failed. Use
+ * dotnet build to see the errors." with no compiler output. `buildForMigrations` runs that build
+ * explicitly first (with `-p:SkipClientBuild=true`, since only the .NET assemblies are needed to
+ * apply migrations) so any real failure surfaces with full diagnostics, then `applyMigrations`
+ * passes `--no-build` so `dotnet ef` reuses it instead of building again.
  */
+export async function buildForMigrations(): Promise<void> {
+  await runDotnet(['build', fileURLToPath(WEB_PROJECT_DIR), '-p:SkipClientBuild=true']);
+}
+
 export async function applyMigrations(connectionString: string): Promise<void> {
   await runDotnet(
     [
@@ -27,7 +41,8 @@ export async function applyMigrations(connectionString: string): Promise<void> {
       '--project',
       fileURLToPath(INFRASTRUCTURE_PROJECT_DIR),
       '--startup-project',
-      fileURLToPath(WEB_PROJECT_DIR)
+      fileURLToPath(WEB_PROJECT_DIR),
+      '--no-build'
     ],
     { [MIGRATION_CONNECTION_STRING_ENV_VAR]: connectionString }
   );
