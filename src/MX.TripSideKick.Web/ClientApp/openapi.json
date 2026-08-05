@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost/"
+      "url": "http://localhost:5299/"
     }
   ],
   "paths": {
@@ -19,7 +19,12 @@
           "200": {
             "description": "OK"
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/auth/login": {
@@ -43,7 +48,12 @@
               "application/json": { }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/auth/logout": {
@@ -67,7 +77,12 @@
               "application/json": { }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/auth/antiforgery": {
@@ -82,7 +97,12 @@
               "application/json": { }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/auth/me": {
@@ -101,7 +121,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/client-config": {
@@ -120,7 +145,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/invitations": {
@@ -153,7 +183,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -201,7 +236,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/invitations/{invitationId}/resend": {
@@ -240,7 +280,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/invitations/{invitationId}/revoke": {
@@ -275,7 +320,12 @@
               "application/json": { }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/invitations/accept": {
@@ -314,7 +364,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/members": {
@@ -347,7 +402,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/members/{membershipId}/role": {
@@ -406,7 +466,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/members/{membershipId}": {
@@ -441,7 +506,12 @@
               "application/json": { }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/members/leave": {
@@ -467,7 +537,12 @@
               "application/json": { }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/status": {
@@ -486,7 +561,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/travellers": {
@@ -519,7 +599,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}/travellers/self": {
@@ -569,7 +654,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -593,7 +683,12 @@
               "application/json": { }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips": {
@@ -632,7 +727,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       },
       "get": {
         "tags": [
@@ -652,7 +752,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     },
     "/v1/trips/{tripId}": {
@@ -682,7 +787,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -730,7 +840,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
       }
     }
   },
@@ -751,7 +866,8 @@
       "AuthMeResponse": {
         "required": [
           "isAuthenticated",
-          "displayName"
+          "displayName",
+          "subjectId"
         ],
         "type": "object",
         "properties": {
@@ -759,6 +875,12 @@
             "type": "boolean"
           },
           "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subjectId": {
             "type": [
               "null",
               "string"
@@ -1134,8 +1256,21 @@
           }
         }
       }
+    },
+    "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "description": "Same-origin session cookie established by the OpenID Connect sign-in flow. Mutating requests additionally require the X-CSRF-TOKEN header (see /v1/auth/antiforgery).",
+        "name": ".AspNetCore.Cookies",
+        "in": "cookie"
+      }
     }
   },
+  "security": [
+    {
+      "SessionCookie": [ ]
+    }
+  ],
   "tags": [
     {
       "name": "MX.TripSideKick.Web"

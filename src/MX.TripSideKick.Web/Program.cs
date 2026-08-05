@@ -23,6 +23,7 @@ using MX.TripSideKick.Infrastructure.Options;
 using MX.TripSideKick.Web;
 using MX.TripSideKick.Web.ExceptionHandling;
 using MX.TripSideKick.Web.Hosting;
+using MX.TripSideKick.Web.OpenApi;
 using MX.TripSideKick.Web.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -149,7 +150,7 @@ builder.Services.AddHostRouting(builder.Configuration);
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddAuthorization();
-builder.Services.AddOpenApi("v1");
+builder.Services.AddOpenApi("v1", options => options.AddDocumentTransformer<CookieAuthSecuritySchemeTransformer>());
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();

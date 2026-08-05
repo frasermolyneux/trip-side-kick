@@ -824,6 +824,7 @@ export interface components {
         AuthMeResponse: {
             isAuthenticated: boolean;
             displayName: null | string;
+            subjectId: null | string;
         };
         ChangeRoleRequest: {
             role: components["schemas"]["MembershipRole"];
