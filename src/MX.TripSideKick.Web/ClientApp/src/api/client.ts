@@ -1,5 +1,6 @@
 import createClient from 'openapi-fetch';
 
+import { fetchAntiforgeryToken, invalidateAntiforgeryToken } from './auth';
 import type { paths } from './generated/schema';
 
 /**
@@ -22,4 +23,33 @@ export const apiClient = createClient<paths>({
   baseUrl: typeof window !== 'undefined' ? window.location.origin : '',
   credentials: 'same-origin',
   fetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args)
+});
+
+/** HTTP methods that mutate state and are therefore guarded by `[ValidateAntiForgeryToken]`. */
+const mutatingMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+/**
+ * Attaches the `X-CSRF-TOKEN` header to every mutating `/v1` request, mirroring the
+ * `[ValidateAntiForgeryToken]` attribute on the corresponding controller actions (see
+ * `AuthController` for the reference pattern). The token is fetched once from
+ * `GET /v1/auth/antiforgery` and cached (see `fetchAntiforgeryToken`); a `400` here almost always
+ * means the cached token expired alongside the antiforgery cookie (e.g. a long-lived tab), so the
+ * cache is cleared to force a fresh token on the next attempt.
+ */
+apiClient.use({
+  async onRequest({ request }) {
+    if (mutatingMethods.has(request.method)) {
+      const token = await fetchAntiforgeryToken();
+      request.headers.set('X-CSRF-TOKEN', token);
+    }
+
+    return request;
+  },
+  onResponse({ response }) {
+    if (response.status === 400) {
+      invalidateAntiforgeryToken();
+    }
+
+    return response;
+  }
 });

@@ -42,6 +42,7 @@ public sealed class InvitationsController(InvitationService invitationService, I
 
     /// <summary>Creates a pending invitation. Owner-only.</summary>
     [HttpPost("v1/trips/{tripId:guid}/invitations")]
+    [ValidateAntiForgeryToken]
     public async Task<ActionResult<InvitationResponse>> Create(
         Guid tripId, [FromBody] CreateInvitationRequest request, CancellationToken cancellationToken)
     {
@@ -63,6 +64,7 @@ public sealed class InvitationsController(InvitationService invitationService, I
 
     /// <summary>Regenerates the acceptance link for a pending invitation (invalidating any previously shared link). Owner-only.</summary>
     [HttpPost("v1/trips/{tripId:guid}/invitations/{invitationId:guid}/resend")]
+    [ValidateAntiForgeryToken]
     public async Task<ActionResult<InvitationResponse>> Resend(Guid tripId, Guid invitationId, CancellationToken cancellationToken)
     {
         var invitation = await invitationService.ResendInvitationAsync(
@@ -73,6 +75,7 @@ public sealed class InvitationsController(InvitationService invitationService, I
 
     /// <summary>Revokes a pending invitation. Owner-only.</summary>
     [HttpPost("v1/trips/{tripId:guid}/invitations/{invitationId:guid}/revoke")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revoke(Guid tripId, Guid invitationId, CancellationToken cancellationToken)
     {
         await invitationService.RevokeInvitationAsync(
@@ -87,6 +90,7 @@ public sealed class InvitationsController(InvitationService invitationService, I
     /// <see cref="Invitation.EnsureCanBeAcceptedBy"/>.
     /// </summary>
     [HttpPost("v1/invitations/accept")]
+    [ValidateAntiForgeryToken]
     public async Task<ActionResult<MembershipResponse>> Accept(
         [FromBody] AcceptInvitationRequest request, CancellationToken cancellationToken)
     {

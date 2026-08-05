@@ -36,6 +36,7 @@ public sealed class TravellersController(TravellerService travellerService, ICur
 
     /// <summary>Links the signed-in member as a traveller on this trip.</summary>
     [HttpPost("self")]
+    [ValidateAntiForgeryToken]
     public async Task<ActionResult<TravellerResponse>> LinkSelf(
         Guid tripId, [FromBody] LinkSelfAsTravellerRequest request, CancellationToken cancellationToken)
     {

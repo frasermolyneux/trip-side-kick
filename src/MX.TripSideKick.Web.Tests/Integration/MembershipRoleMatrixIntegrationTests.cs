@@ -56,7 +56,7 @@ public sealed class MembershipRoleMatrixIntegrationTests : IDisposable
         using var removeResponse = await owner.DeleteAsync(new Uri($"/v1/trips/{tripId}/members/{ownerMembership.Id}", UriKind.Relative));
         Assert.Equal(HttpStatusCode.Conflict, removeResponse.StatusCode);
 
-        using var leaveResponse = await owner.PostAsync(new Uri($"/v1/trips/{tripId}/members/leave", UriKind.Relative), content: null);
+        using var leaveResponse = await owner.PostWithAntiforgeryAsync($"/v1/trips/{tripId}/members/leave");
         Assert.Equal(HttpStatusCode.Conflict, leaveResponse.StatusCode);
     }
 
@@ -92,7 +92,7 @@ public sealed class MembershipRoleMatrixIntegrationTests : IDisposable
 
     private static async Task<(Guid TripId, MembershipResponse Owner)> CreateTripAsync(HttpClient ownerClient, string name)
     {
-        using var createResponse = await ownerClient.PostAsJsonAsync(
+        using var createResponse = await ownerClient.PostAsJsonWithAntiforgeryAsync(
             "/v1/trips", new CreateTripRequest(name, null, null, null, null));
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var trip = await createResponse.Content.ReadFromJsonAsync<TripResponse>();
@@ -107,14 +107,14 @@ public sealed class MembershipRoleMatrixIntegrationTests : IDisposable
     {
         var email = $"{subjectId}@example.com";
 
-        using var inviteResponse = await ownerClient.PostAsJsonAsync(
+        using var inviteResponse = await ownerClient.PostAsJsonWithAntiforgeryAsync(
             $"/v1/trips/{tripId}/invitations",
             new CreateInvitationRequest(email, role, TravellerLinkKind.NonTravellingPlanner, null, null));
         Assert.Equal(HttpStatusCode.Created, inviteResponse.StatusCode);
         var invitation = await inviteResponse.Content.ReadFromJsonAsync<InvitationResponse>();
 
         using var invitee = factory.CreateAuthenticatedClientFor(TripSideKickApplicationFactory.AppHost, subjectId, subjectId, email);
-        using var acceptResponse = await invitee.PostAsJsonAsync(
+        using var acceptResponse = await invitee.PostAsJsonWithAntiforgeryAsync(
             "/v1/invitations/accept", new AcceptInvitationRequest(AcceptanceUrls.ExtractToken(invitation!.AcceptanceUrl)));
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
 

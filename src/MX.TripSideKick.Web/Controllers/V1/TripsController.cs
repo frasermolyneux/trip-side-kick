@@ -24,6 +24,7 @@ public sealed class TripsController(TripPlanningService tripPlanningService, ICu
 
     /// <summary>Creates a trip. The creator becomes its Owner and an account-linked traveller by default.</summary>
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<ActionResult<TripResponse>> Create(
         [FromBody] CreateTripRequest request, CancellationToken cancellationToken)
     {

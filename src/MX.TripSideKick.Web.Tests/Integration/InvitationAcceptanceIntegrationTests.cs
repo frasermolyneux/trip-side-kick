@@ -34,7 +34,7 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
         using var impostor = factory.CreateAuthenticatedClientFor(
             TripSideKickApplicationFactory.AppHost, "impostor-subject", "Impostor", "someone-else@example.com");
 
-        using var response = await impostor.PostAsJsonAsync(
+        using var response = await impostor.PostAsJsonWithAntiforgeryAsync(
             "/v1/invitations/accept", new AcceptInvitationRequest(AcceptanceUrls.ExtractToken(invitation.AcceptanceUrl)));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -50,7 +50,7 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
         using var invitee = factory.CreateAuthenticatedClientFor(
             TripSideKickApplicationFactory.AppHost, "friend-subject", "Friend", "friend@example.com");
 
-        using var response = await invitee.PostAsJsonAsync(
+        using var response = await invitee.PostAsJsonWithAntiforgeryAsync(
             "/v1/invitations/accept", new AcceptInvitationRequest(AcceptanceUrls.ExtractToken(invitation.AcceptanceUrl)));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -68,7 +68,7 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
         using var travellersBefore = await owner.GetAsync(new Uri($"/v1/trips/{tripId}/travellers", UriKind.Relative));
         var beforeCount = (await travellersBefore.Content.ReadFromJsonAsync<List<TravellerResponse>>())!.Count;
 
-        using var inviteResponse = await owner.PostAsJsonAsync(
+        using var inviteResponse = await owner.PostAsJsonWithAntiforgeryAsync(
             $"/v1/trips/{tripId}/invitations",
             new CreateInvitationRequest(
                 "linked@example.com", MembershipRole.Editor, TravellerLinkKind.NewLinkedTraveller, null, "New Linked Traveller"));
@@ -77,7 +77,7 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
 
         using var invitee = factory.CreateAuthenticatedClientFor(
             TripSideKickApplicationFactory.AppHost, "linked-subject", "Linked", "linked@example.com");
-        using var acceptResponse = await invitee.PostAsJsonAsync(
+        using var acceptResponse = await invitee.PostAsJsonWithAntiforgeryAsync(
             "/v1/invitations/accept", new AcceptInvitationRequest(AcceptanceUrls.ExtractToken(invitation!.AcceptanceUrl)));
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
         var membership = await acceptResponse.Content.ReadFromJsonAsync<MembershipResponse>();
@@ -100,12 +100,12 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
         var firstInvitation = await CreateInvitationAsync(owner, tripId, "twice@example.com", MembershipRole.Viewer);
         using var invitee = factory.CreateAuthenticatedClientFor(
             TripSideKickApplicationFactory.AppHost, "twice-subject", "Twice", "twice@example.com");
-        using var firstAccept = await invitee.PostAsJsonAsync(
+        using var firstAccept = await invitee.PostAsJsonWithAntiforgeryAsync(
             "/v1/invitations/accept", new AcceptInvitationRequest(AcceptanceUrls.ExtractToken(firstInvitation.AcceptanceUrl)));
         Assert.Equal(HttpStatusCode.OK, firstAccept.StatusCode);
 
         var secondInvitation = await CreateInvitationAsync(owner, tripId, "twice@example.com", MembershipRole.Editor);
-        using var secondAccept = await invitee.PostAsJsonAsync(
+        using var secondAccept = await invitee.PostAsJsonWithAntiforgeryAsync(
             "/v1/invitations/accept", new AcceptInvitationRequest(AcceptanceUrls.ExtractToken(secondInvitation.AcceptanceUrl)));
 
         Assert.Equal(HttpStatusCode.Conflict, secondAccept.StatusCode);
@@ -118,13 +118,13 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
         var tripId = await CreateTripAsync(owner, "Revoked invite trip");
         var invitation = await CreateInvitationAsync(owner, tripId, "revoked@example.com", MembershipRole.Viewer);
 
-        using var revokeResponse = await owner.PostAsync(
-            new Uri($"/v1/trips/{tripId}/invitations/{invitation.Id}/revoke", UriKind.Relative), content: null);
+        using var revokeResponse = await owner.PostWithAntiforgeryAsync(
+            $"/v1/trips/{tripId}/invitations/{invitation.Id}/revoke");
         Assert.Equal(HttpStatusCode.NoContent, revokeResponse.StatusCode);
 
         using var invitee = factory.CreateAuthenticatedClientFor(
             TripSideKickApplicationFactory.AppHost, "revoked-subject", "Revoked", "revoked@example.com");
-        using var acceptResponse = await invitee.PostAsJsonAsync(
+        using var acceptResponse = await invitee.PostAsJsonWithAntiforgeryAsync(
             "/v1/invitations/accept", new AcceptInvitationRequest(AcceptanceUrls.ExtractToken(invitation.AcceptanceUrl)));
 
         Assert.Equal(HttpStatusCode.Conflict, acceptResponse.StatusCode);
@@ -132,7 +132,7 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
 
     private static async Task<Guid> CreateTripAsync(HttpClient ownerClient, string name)
     {
-        using var response = await ownerClient.PostAsJsonAsync("/v1/trips", new CreateTripRequest(name, null, null, null, null));
+        using var response = await ownerClient.PostAsJsonWithAntiforgeryAsync("/v1/trips", new CreateTripRequest(name, null, null, null, null));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var trip = await response.Content.ReadFromJsonAsync<TripResponse>();
         return trip!.Id;
@@ -141,7 +141,7 @@ public sealed class InvitationAcceptanceIntegrationTests : IDisposable
     private static async Task<InvitationResponse> CreateInvitationAsync(
         HttpClient ownerClient, Guid tripId, string invitedEmail, MembershipRole role)
     {
-        using var response = await ownerClient.PostAsJsonAsync(
+        using var response = await ownerClient.PostAsJsonWithAntiforgeryAsync(
             $"/v1/trips/{tripId}/invitations",
             new CreateInvitationRequest(invitedEmail, role, TravellerLinkKind.NonTravellingPlanner, null, null));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);

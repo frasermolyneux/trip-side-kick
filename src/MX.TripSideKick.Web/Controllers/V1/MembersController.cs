@@ -72,6 +72,7 @@ public sealed class MembersController(MembershipService membershipService, ICurr
 
     /// <summary>The signed-in member leaves the trip. Blocked if they are the last Owner.</summary>
     [HttpPost("leave")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Leave(Guid tripId, CancellationToken cancellationToken)
     {
         await membershipService.LeaveTripAsync(new TripId(tripId), RequireSubjectId(), cancellationToken).ConfigureAwait(false);

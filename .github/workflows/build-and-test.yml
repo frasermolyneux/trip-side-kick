@@ -69,6 +69,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Nerdbank.GitVersioning needs full history to calculate version height;
+          # the default shallow clone fails the build with MSB4018.
+          fetch-depth: 0
 
       # Hermetic Playwright suite (Journeys 1 & 2) - Testcontainers SQL Server (Docker is
       # preinstalled on ubuntu-latest runners), deterministic test-auth, no cloud/Entra/secrets.
