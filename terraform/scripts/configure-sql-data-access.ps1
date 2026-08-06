@@ -71,6 +71,31 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Azure SQL serverless (GP_S_*) auto-pauses after inactivity; the first connection triggers a resume
+# that can take up to ~60s, during which the connection blocks in the post-login phase and a normal
+# ~15-30s connection timeout expires ("Connection Timeout Expired ... post-login phase"). Wrap each
+# Invoke-Sqlcmd in a retry with a generous per-attempt connection timeout so the deploy rides out the
+# resume instead of failing on a cold database.
+function Invoke-SqlWithResumeRetry {
+    param(
+        [Parameter(Mandatory = $true)][scriptblock] $Action,
+        [int] $MaxAttempts = 6,
+        [int] $DelaySeconds = 20
+    )
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        try {
+            & $Action
+            return
+        }
+        catch {
+            if ($attempt -ge $MaxAttempts) { throw }
+            $firstLine = ($_.Exception.Message -split "`n")[0]
+            Write-Host "Attempt $attempt of $MaxAttempts failed ($firstLine). The serverless database may be resuming - retrying in $DelaySeconds s..."
+            Start-Sleep -Seconds $DelaySeconds
+        }
+    }
+}
+
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw "The Azure CLI ('az') is required and must already be logged in (see azure/login in the workflow)."
 }
@@ -141,7 +166,9 @@ END;
 "@
 
 Write-Host "Ensuring contained database user '$ManagedIdentityName' exists (by SID) with db_datareader/db_datawriter only..."
-Invoke-Sqlcmd -ServerInstance $SqlServerFqdn -Database $SqlDatabaseName -AccessToken $accessToken -Query $createUserSql -ErrorAction Stop
+Invoke-SqlWithResumeRetry {
+    Invoke-Sqlcmd -ServerInstance $SqlServerFqdn -Database $SqlDatabaseName -AccessToken $accessToken -Query $createUserSql -ConnectionTimeout 60 -ErrorAction Stop
+}
 
 if ($MigrationsScriptPath) {
     if (-not (Test-Path $MigrationsScriptPath)) {
@@ -149,7 +176,9 @@ if ($MigrationsScriptPath) {
     }
 
     Write-Host "Applying EF Core migrations from '$MigrationsScriptPath' as the workload identity (SQL AAD admin)..."
-    Invoke-Sqlcmd -ServerInstance $SqlServerFqdn -Database $SqlDatabaseName -AccessToken $accessToken -InputFile $MigrationsScriptPath -ErrorAction Stop
+    Invoke-SqlWithResumeRetry {
+        Invoke-Sqlcmd -ServerInstance $SqlServerFqdn -Database $SqlDatabaseName -AccessToken $accessToken -InputFile $MigrationsScriptPath -ConnectionTimeout 60 -QueryTimeout 300 -ErrorAction Stop
+    }
 }
 else {
     Write-Host "No -MigrationsScriptPath supplied - skipping migration apply."
