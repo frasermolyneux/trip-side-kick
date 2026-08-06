@@ -89,7 +89,7 @@ function Invoke-SqlWithResumeRetry {
         }
         catch {
             if ($attempt -ge $MaxAttempts) { throw }
-            $firstLine = ($_.Exception.Message -split "`n")[0]
+            $firstLine = (($_.Exception.Message -split "`r?`n") | Select-Object -First 1).Trim()
             Write-Host "Attempt $attempt of $MaxAttempts failed ($firstLine). The serverless database may be resuming - retrying in $DelaySeconds s..."
             Start-Sleep -Seconds $DelaySeconds
         }
