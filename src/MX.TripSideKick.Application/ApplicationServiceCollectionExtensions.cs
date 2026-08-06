@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using MX.TripSideKick.Application.Invitations;
+using MX.TripSideKick.Application.Itinerary;
 using MX.TripSideKick.Application.Memberships;
 using MX.TripSideKick.Application.Travellers;
 using MX.TripSideKick.Application.Trips;
@@ -31,6 +32,8 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddScoped<MembershipService>();
         services.TryAddScoped<TravellerService>();
         services.TryAddScoped<InvitationService>();
+        services.TryAddScoped<ItineraryPlanningService>();
+        services.TryAddScoped<TripTravellerFilterService>();
 
         return services;
     }

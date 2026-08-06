@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 
 using MX.TripSideKick.Application.Common;
 using MX.TripSideKick.Application.Invitations;
+using MX.TripSideKick.Application.Itinerary;
 using MX.TripSideKick.Application.Memberships;
 using MX.TripSideKick.Application.Travellers;
 using MX.TripSideKick.Application.Trips;
@@ -80,6 +81,18 @@ public static class InfrastructureServiceCollectionExtensions
         services.TryAddScoped<IInvitationRepository>(serviceProvider => IsSqlConfigured(serviceProvider)
             ? ActivatorUtilities.CreateInstance<SqlInvitationRepository>(serviceProvider)
             : new EmptyInvitationRepository());
+        services.TryAddScoped<IItineraryRepository>(serviceProvider => IsSqlConfigured(serviceProvider)
+            ? ActivatorUtilities.CreateInstance<SqlItineraryRepository>(serviceProvider)
+            : new EmptyItineraryRepository());
+        services.TryAddScoped<IItineraryCommentRepository>(serviceProvider => IsSqlConfigured(serviceProvider)
+            ? ActivatorUtilities.CreateInstance<SqlItineraryCommentRepository>(serviceProvider)
+            : new EmptyItineraryCommentRepository());
+        services.TryAddScoped<ITripActivityFeedRepository>(serviceProvider => IsSqlConfigured(serviceProvider)
+            ? ActivatorUtilities.CreateInstance<SqlTripActivityFeedRepository>(serviceProvider)
+            : new EmptyTripActivityFeedRepository());
+        services.TryAddScoped<ITripTravellerFilterRepository>(serviceProvider => IsSqlConfigured(serviceProvider)
+            ? ActivatorUtilities.CreateInstance<SqlTripTravellerFilterRepository>(serviceProvider)
+            : new EmptyTripTravellerFilterRepository());
         services.TryAddScoped<IUnitOfWork>(serviceProvider => IsSqlConfigured(serviceProvider)
             ? ActivatorUtilities.CreateInstance<EfUnitOfWork>(serviceProvider)
             : new NoOpUnitOfWork());

@@ -14,3 +14,9 @@ public sealed class InvitationIdentityMismatchException(string message) : Domain
 
 /// <summary>Thrown when an invitation cannot be accepted/resent/revoked because of its current status.</summary>
 public sealed class InvitationStateException(string message) : DomainRuleViolationException(message);
+
+/// <summary>
+/// Thrown when an itinerary item cannot be scheduled onto a day because the trip's dates are not
+/// confirmed yet (day-by-day scheduling requires <c>TripDateStatus.Confirmed</c>).
+/// </summary>
+public sealed class SchedulingNotSupportedException(string message) : DomainRuleViolationException(message);
