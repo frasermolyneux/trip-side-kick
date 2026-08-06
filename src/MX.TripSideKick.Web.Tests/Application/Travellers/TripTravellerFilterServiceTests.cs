@@ -1,3 +1,4 @@
+using MX.TripSideKick.Application.Common;
 using MX.TripSideKick.Application.Memberships;
 using MX.TripSideKick.Application.Travellers;
 using MX.TripSideKick.Domain.Memberships;
@@ -91,5 +92,43 @@ public sealed class TripTravellerFilterServiceTests
             .ReturnsAsync((Traveller?)null);
 
         Assert.Empty(await sut.ResolveEffectiveTravellerIdsAsync(filter));
+    }
+
+    [Fact]
+    public async Task UpdateForCaller_recovers_when_a_concurrent_first_write_creates_the_row_first()
+    {
+        // The caller has never read the filter (no row exists from their point of view), so they
+        // send an update with a made-up/empty expected RowVersion. Concurrently, another request
+        // wins the race to create the row, so this caller's AddAsync throws a concurrency
+        // conflict. The service must not lose the caller's requested mode/selection - it should
+        // re-read the winning row and apply the update against its real RowVersion instead of
+        // propagating the conflict.
+        filterRepository
+            .SetupSequence(r => r.GetForTripAndMembershipAsync(tripId, membership.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TripTravellerFilter?)null)
+            .ReturnsAsync(WithRowVersion(TripTravellerFilter.CreateDefault(tripId, membership.Id), [9, 9, 9]));
+
+        filterRepository
+            .Setup(r => r.AddAsync(It.IsAny<TripTravellerFilter>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ConcurrencyConflictException("Another request created the row first."));
+
+        var selected = TravellerId.New();
+        var updated = await sut.UpdateForCallerAsync(
+            tripId, SubjectId, TravellerFilterMode.Selected, new[] { selected }, expectedRowVersion: [1, 2, 3]);
+
+        Assert.Equal(TravellerFilterMode.Selected, updated.Mode);
+        Assert.Contains(selected, updated.SelectedTravellerIds);
+        // Must use the re-read row's own RowVersion, not the caller's stale/made-up expected value.
+        filterRepository.Verify(
+            r => r.UpdateAsync(updated, new byte[] { 9, 9, 9 }, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    private static TripTravellerFilter WithRowVersion(TripTravellerFilter filter, byte[] rowVersion)
+    {
+        typeof(TripTravellerFilter)
+            .GetProperty(nameof(TripTravellerFilter.RowVersion))!
+            .SetValue(filter, rowVersion);
+        return filter;
     }
 }

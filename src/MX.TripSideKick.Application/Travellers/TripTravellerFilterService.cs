@@ -82,8 +82,27 @@ public sealed class TripTravellerFilterService(
         {
             // First-write auto-create: create a default row, then update it in place so the row
             // ends up with the requested mode/selection and a real RowVersion.
-            filter = TripTravellerFilter.CreateDefault(tripId, membership.Id);
-            await filterRepository.AddAsync(filter, cancellationToken).ConfigureAwait(false);
+            var created = TripTravellerFilter.CreateDefault(tripId, membership.Id);
+            try
+            {
+                await filterRepository.AddAsync(created, cancellationToken).ConfigureAwait(false);
+                filter = created;
+            }
+            catch (ConcurrencyConflictException)
+            {
+                // A concurrent first-write for the same member created the row first (races on the
+                // unique (TripId, MembershipId) index). The caller couldn't have supplied a valid
+                // If-Match for a row it didn't know existed, so re-read the winning row and apply
+                // this caller's requested mode/selection against its real RowVersion instead of
+                // discarding the request with a 409 the caller has no way to recover from.
+                filter = await filterRepository
+                    .GetForTripAndMembershipAsync(tripId, membership.Id, cancellationToken)
+                    .ConfigureAwait(false)
+                    ?? throw new InvalidOperationException(
+                        "Traveller filter row disappeared immediately after a concurrency conflict.");
+                expectedRowVersion = filter.RowVersion
+                    ?? throw new InvalidOperationException("Persisted traveller filter is missing a RowVersion.");
+            }
         }
 
         filter.Update(mode, selectedTravellerIds);
