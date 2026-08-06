@@ -14,3 +14,15 @@ export type AcceptInvitationRequest = components['schemas']['AcceptInvitationReq
 
 export type TravellerResponse = components['schemas']['TravellerResponse'];
 export type LinkSelfAsTravellerRequest = components['schemas']['LinkSelfAsTravellerRequest'];
+
+export type ItineraryItemResponse = components['schemas']['ItineraryItemResponse'];
+export type ItineraryScheduleResponse = components['schemas']['ItineraryScheduleResponse'];
+export type CreateItineraryItemRequest = components['schemas']['CreateItineraryItemRequest'];
+export type UpdateItineraryItemContentRequest = components['schemas']['UpdateItineraryItemContentRequest'];
+export type ScheduleItineraryItemRequest = components['schemas']['ScheduleItineraryItemRequest'];
+export type SetApplicabilityRequest = components['schemas']['SetApplicabilityRequest'];
+export type ItineraryCommentResponse = components['schemas']['ItineraryCommentResponse'];
+export type AddCommentRequest = components['schemas']['AddCommentRequest'];
+export type TripActivityFeedEntryResponse = components['schemas']['TripActivityFeedEntryResponse'];
+export type TripTravellerFilterResponse = components['schemas']['TripTravellerFilterResponse'];
+export type SetTravellerFilterRequest = components['schemas']['SetTravellerFilterRequest'];

@@ -12,6 +12,7 @@ import { AcceptInvitationPage } from './routes/AcceptInvitationPage';
 import { CreateTripPage } from './routes/CreateTripPage';
 import { ManageMembersPage } from './routes/ManageMembersPage';
 import { TripDashboardPage } from './routes/TripDashboardPage';
+import { TripItineraryPage } from './routes/TripItineraryPage';
 import { TripsListPage } from './routes/TripsListPage';
 import { initialiseTelemetry } from './telemetry';
 
@@ -123,6 +124,10 @@ export function App() {
             <Route
               path="/trips/:tripId/members"
               element={<RequireAuth config={config} auth={auth}><AppShell><ManageMembersPage /></AppShell></RequireAuth>}
+            />
+            <Route
+              path="/trips/:tripId/itinerary"
+              element={<RequireAuth config={config} auth={auth}><AppShell><TripItineraryPage /></AppShell></RequireAuth>}
             />
             <Route path="/invitations/accept" element={<AppShell><AcceptInvitationPage /></AppShell>} />
             <Route path="*" element={<Navigate to="/" replace />} />

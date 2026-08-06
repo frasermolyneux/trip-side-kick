@@ -397,6 +397,413 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/trips/{tripId}/itinerary/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryItemResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateItineraryItemRequest"];
+                    "text/json": components["schemas"]["CreateItineraryItemRequest"];
+                    "application/*+json": components["schemas"]["CreateItineraryItemRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryItemResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trips/{tripId}/itinerary/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    itemId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateItineraryItemContentRequest"];
+                    "text/json": components["schemas"]["UpdateItineraryItemContentRequest"];
+                    "application/*+json": components["schemas"]["UpdateItineraryItemContentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryItemResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    itemId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trips/{tripId}/itinerary/items/{itemId}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    itemId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ScheduleItineraryItemRequest"];
+                    "text/json": components["schemas"]["ScheduleItineraryItemRequest"];
+                    "application/*+json": components["schemas"]["ScheduleItineraryItemRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryItemResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    itemId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryItemResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trips/{tripId}/itinerary/items/{itemId}/applicability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    itemId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SetApplicabilityRequest"];
+                    "text/json": components["schemas"]["SetApplicabilityRequest"];
+                    "application/*+json": components["schemas"]["SetApplicabilityRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryItemResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trips/{tripId}/itinerary/items/{itemId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    itemId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryCommentResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    itemId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AddCommentRequest"];
+                    "text/json": components["schemas"]["AddCommentRequest"];
+                    "application/*+json": components["schemas"]["AddCommentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItineraryCommentResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trips/{tripId}/itinerary/activity-feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TripActivityFeedEntryResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trips/{tripId}/itinerary/traveller-filter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TripTravellerFilterResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SetTravellerFilterRequest"];
+                    "text/json": components["schemas"]["SetTravellerFilterRequest"];
+                    "application/*+json": components["schemas"]["SetTravellerFilterRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TripTravellerFilterResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/trips/{tripId}/members": {
         parameters: {
             query?: never;
@@ -821,6 +1228,9 @@ export interface components {
             /** Format: uuid */
             acceptanceToken: string;
         };
+        AddCommentRequest: {
+            body: string;
+        };
         AuthMeResponse: {
             isAuthenticated: boolean;
             displayName: null | string;
@@ -843,6 +1253,12 @@ export interface components {
             existingTravellerId: null | string;
             newTravellerDisplayName: null | string;
         };
+        CreateItineraryItemRequest: {
+            title: string;
+            notes: null | string;
+            location: null | string;
+            applicableTravellerIds: null | string[];
+        };
         CreateTripRequest: {
             name: string;
             destinations: null | string[];
@@ -861,6 +1277,39 @@ export interface components {
             linkKind: components["schemas"]["TravellerLinkKind"];
             acceptanceUrl: string;
         };
+        ItineraryCommentResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            itineraryItemId: string;
+            authorDisplayName: string;
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ItineraryItemResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tripId: string;
+            title: string;
+            notes: null | string;
+            location: null | string;
+            schedule: components["schemas"]["ItineraryScheduleResponse"];
+            applicableTravellerIds: string[];
+            eTag: string;
+        };
+        ItineraryScheduleResponse: {
+            status: string;
+            /** Format: date */
+            date: null | string;
+            /** Format: time */
+            startTime: null | string;
+            /** Format: time */
+            endTime: null | string;
+        };
         LinkSelfAsTravellerRequest: {
             displayName: null | string;
         };
@@ -874,6 +1323,21 @@ export interface components {
             eTag: string;
         };
         MembershipRole: number;
+        ScheduleItineraryItemRequest: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            startTime: null | string;
+            /** Format: time */
+            endTime: null | string;
+        };
+        SetApplicabilityRequest: {
+            travellerIds: null | string[];
+        };
+        SetTravellerFilterRequest: {
+            mode: string;
+            selectedTravellerIds: null | string[];
+        };
         StatusResponse: {
             environment: string;
             authenticated: boolean;
@@ -887,6 +1351,19 @@ export interface components {
             displayName: string;
             /** Format: uuid */
             linkedMembershipId: null | string;
+        };
+        TripActivityFeedEntryResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tripId: string;
+            actorDisplayName: string;
+            eventType: string;
+            summary: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: uuid */
+            itineraryItemId: null | string;
         };
         TripDatesModel: {
             status: string;
@@ -904,6 +1381,22 @@ export interface components {
             dates: components["schemas"]["TripDatesModel"];
             coverImageUrl: null | string;
             eTag: string;
+        };
+        TripTravellerFilterResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            membershipId: string;
+            mode: string;
+            selectedTravellerIds: string[];
+            eTag: string;
+        };
+        UpdateItineraryItemContentRequest: {
+            title: string;
+            notes: null | string;
+            location: null | string;
         };
         UpdateTripRequest: {
             name: null | string;
