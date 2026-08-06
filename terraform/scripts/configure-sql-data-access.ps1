@@ -100,14 +100,21 @@ catch {
 }
 $sid = '0x' + (($identityGuid.ToByteArray() | ForEach-Object { $_.ToString('X2') }) -join '')
 
+# Escape the identity name for the two SQL quoting contexts it appears in, so the generated T-SQL is
+# robust even if the naming convention ever changes: doubled single quotes for the N'...' string
+# literals, and doubled closing brackets for the [...] quoted identifiers. (The name is currently a
+# deterministic Terraform local with none of these characters, but escaping keeps it injection-proof.)
+$nameLiteral = $ManagedIdentityName.Replace("'", "''")
+$nameIdent = $ManagedIdentityName.Replace("]", "]]")
+
 # The workload service principal is the SQL server's Entra admin (azuread_administrator block in
 # terraform/sql.tf), so this connection is authorized to create users and apply schema changes.
 # Creating the user by SID (WITH SID = ..., TYPE = E) rather than FROM EXTERNAL PROVIDER means the SQL
 # server identity never needs the Entra "Directory Readers" role.
 $createUserSql = @"
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'$ManagedIdentityName')
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'$nameLiteral')
 BEGIN
-    CREATE USER [$ManagedIdentityName] WITH SID = $sid, TYPE = E;
+    CREATE USER [$nameIdent] WITH SID = $sid, TYPE = E;
 END;
 
 IF NOT EXISTS (
@@ -115,10 +122,10 @@ IF NOT EXISTS (
     FROM sys.database_role_members rm
     JOIN sys.database_principals r ON rm.role_principal_id = r.principal_id
     JOIN sys.database_principals m ON rm.member_principal_id = m.principal_id
-    WHERE r.name = N'db_datareader' AND m.name = N'$ManagedIdentityName'
+    WHERE r.name = N'db_datareader' AND m.name = N'$nameLiteral'
 )
 BEGIN
-    ALTER ROLE db_datareader ADD MEMBER [$ManagedIdentityName];
+    ALTER ROLE db_datareader ADD MEMBER [$nameIdent];
 END;
 
 IF NOT EXISTS (
@@ -126,10 +133,10 @@ IF NOT EXISTS (
     FROM sys.database_role_members rm
     JOIN sys.database_principals r ON rm.role_principal_id = r.principal_id
     JOIN sys.database_principals m ON rm.member_principal_id = m.principal_id
-    WHERE r.name = N'db_datawriter' AND m.name = N'$ManagedIdentityName'
+    WHERE r.name = N'db_datawriter' AND m.name = N'$nameLiteral'
 )
 BEGIN
-    ALTER ROLE db_datawriter ADD MEMBER [$ManagedIdentityName];
+    ALTER ROLE db_datawriter ADD MEMBER [$nameIdent];
 END;
 "@
 

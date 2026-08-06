@@ -4,10 +4,10 @@ namespace MX.TripSideKick.Infrastructure.Options;
 /// Azure SQL connection settings.
 /// </summary>
 /// <remarks>
-/// The connection string is always an Entra-only, password-free connection string
-/// (<c>Authentication=Active Directory Managed Identity;User Id=&lt;client-id&gt;</c>) resolved through
-/// the App Service's dedicated data-access user-assigned managed identity. No SQL logins or secrets
-/// are ever configured.
+/// In the deployed App Service the connection string is an Entra-only, password-free connection
+/// string (<c>Authentication=Active Directory Managed Identity;User Id=&lt;client-id&gt;</c>) resolved
+/// through the dedicated data-access user-assigned managed identity - no SQL logins or secrets. Tests
+/// and design-time tooling may instead supply a SQL-login / Testcontainers connection string.
 /// </remarks>
 public sealed class SqlOptions
 {
