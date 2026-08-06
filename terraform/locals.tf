@@ -10,6 +10,9 @@ locals {
   sql_server_name   = "sql-${var.workload}-${var.environment}-${var.location}-${random_id.environment_id.hex}"
   sql_database_name = "sqldb-${var.workload}-${var.environment}"
 
+  # User-assigned managed identity the App Service uses for Azure SQL data access (managed_identity.tf).
+  sql_data_identity_name = "id-${var.workload}-${var.environment}-${var.location}"
+
   storage_account_prefix = substr(replace(var.workload, "-", ""), 0, 11)
   storage_account_name   = lower("st${local.storage_account_prefix}${var.environment}${random_id.storage.hex}")
 

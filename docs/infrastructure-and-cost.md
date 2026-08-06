@@ -83,6 +83,7 @@ Why serverless rather than Basic DTU:
 * No VNet integration or Private Link; SQL uses the "allow Azure services" firewall rule and the
   storage account and Key Vault allow public network access. Revisit if the workload ever holds data
   that justifies the extra plan cost.
-* The App Service managed identity still needs a contained database user
-  (`CREATE USER [...] FROM EXTERNAL PROVIDER`) — see the TODO in `terraform/sql.tf`.
+* The App Service's data-access user-assigned managed identity needs a contained database user,
+  created **by SID** (`CREATE USER [...] WITH SID = ..., TYPE = E`) as a CI step — see
+  `terraform/scripts/configure-sql-data-access.ps1` and [Data and Persistence](data-and-persistence.md).
 * No Entra External ID resources — see [Identity and Access](identity-and-access.md).

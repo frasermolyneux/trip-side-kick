@@ -73,10 +73,12 @@ resource "azurerm_mssql_database" "db" {
   tags = local.tags
 }
 
-# The contained database user for the App Service's system-assigned managed identity
-# (CREATE USER [<web app name>] FROM EXTERNAL PROVIDER, granted EXACTLY db_datareader +
-# db_datawriter) is created by a CI step, not Terraform - it is a T-SQL operation and this stack
-# never opens a SQL connection. Migrations are applied the same way, under the workload service
-# principal above (the SQL AAD admin), never by the low-privilege runtime identity. See
+# The contained database user for the App Service's data-access managed identity
+# (a dedicated user-assigned identity - managed_identity.tf; CREATE USER [<identity name>] WITH SID =
+# <client_id-bytes>, TYPE = E, granted EXACTLY db_datareader + db_datawriter) is created by a CI step,
+# not Terraform - it is a T-SQL operation and this stack never opens a SQL connection. Creating it by
+# SID (rather than FROM EXTERNAL PROVIDER) means the server identity never needs the Entra "Directory
+# Readers" role. Migrations are applied the same way, under the workload service principal (the SQL
+# AAD admin above), never by the low-privilege runtime identity. See
 # terraform/scripts/configure-sql-data-access.ps1, docs/data-and-persistence.md, and the
 # "Configure SQL data access" step in .github/workflows/deploy-dev.yml / deploy-prd.yml.

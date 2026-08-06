@@ -44,6 +44,16 @@ output "sql_database_name" {
   value = azurerm_mssql_database.db.name
 }
 
+output "sql_data_identity_name" {
+  description = "Name of the user-assigned managed identity used by the App Service for SQL data access; used as the contained database user name."
+  value       = azurerm_user_assigned_identity.sql_data.name
+}
+
+output "sql_data_identity_client_id" {
+  description = "Client (application) ID of the SQL data-access managed identity; converted to a SID to create the contained database user (see configure-sql-data-access.ps1)."
+  value       = azurerm_user_assigned_identity.sql_data.client_id
+}
+
 output "identity_app_client_id" {
   description = "Client ID of the Entra External ID app registration used for BFF sign-in."
   value       = azuread_application.app_sign_in.client_id
