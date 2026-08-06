@@ -161,6 +161,14 @@ jobs:
         shell: bash
         run: dotnet tool restore
 
+      # dotnet-ef builds the target project to load the model, which needs a NuGet restore first
+      # (this job doesn't run the full build). Restoring the Infrastructure project transitively
+      # restores its Domain/Application project references. Without this the migrations-script
+      # step fails with NETSDK1004 (missing project.assets.json).
+      - name: Restore Infrastructure project (for EF tooling)
+        shell: bash
+        run: dotnet restore src/MX.TripSideKick.Infrastructure/MX.TripSideKick.Infrastructure.csproj
+
       # Idempotent EF Core migration script - safe to (re-)apply every deploy; already-applied
       # migrations are skipped via the __EFMigrationsHistory guard clauses `--idempotent` generates.
       - name: Generate idempotent EF Core migrations script
@@ -289,6 +297,14 @@ jobs:
       - name: Restore local dotnet tools (dotnet-ef)
         shell: bash
         run: dotnet tool restore
+
+      # dotnet-ef builds the target project to load the model, which needs a NuGet restore first
+      # (this job doesn't run the full build). Restoring the Infrastructure project transitively
+      # restores its Domain/Application project references. Without this the migrations-script
+      # step fails with NETSDK1004 (missing project.assets.json).
+      - name: Restore Infrastructure project (for EF tooling)
+        shell: bash
+        run: dotnet restore src/MX.TripSideKick.Infrastructure/MX.TripSideKick.Infrastructure.csproj
 
       # Idempotent EF Core migration script - safe to (re-)apply every deploy; already-applied
       # migrations are skipped via the __EFMigrationsHistory guard clauses `--idempotent` generates.
