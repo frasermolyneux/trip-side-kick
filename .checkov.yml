@@ -1,0 +1,12 @@
+# Checkov configuration — suppress checks that are not applicable to this
+# repository. Aligned with the org soft-fail approach (see platform-status-web);
+# these are the specific checks we have reviewed and accepted.
+soft-fail: true
+skip-check:
+  # --- OpenAPI (generated document, not a hand-authored contract) ---
+  # src/MX.TripSideKick.Web/ClientApp/openapi.json is generated from the ASP.NET
+  # Core minimal OpenAPI pipeline and consumed by openapi-typescript to produce
+  # client types. maxItems is not emitted by the generator and adding it by hand
+  # would be overwritten on every regeneration; array bounds are enforced in the
+  # API models/validation, not in the schema document.
+  - CKV_OPENAPI_21  # Ensure that arrays have a maximum number of items

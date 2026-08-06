@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
+using MX.TripSideKick.Application.Common;
 using MX.TripSideKick.Application.Trips;
 using MX.TripSideKick.Domain.Trips;
 
@@ -36,34 +37,52 @@ public sealed class SqlTripRepository(TripSideKickDbContext dbContext, IMemoryCa
         return trip;
     }
 
-    public async Task<IReadOnlyList<Trip>> ListAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Trips
+    public async Task<IReadOnlyList<Trip>> GetManyAsync(IReadOnlyCollection<TripId> ids, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Trips
             .AsNoTracking()
-            .OrderBy(t => t.StartDate)
+            .Where(t => ids.Contains(t.Id))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+    }
 
-    public async Task UpsertAsync(Trip trip, CancellationToken cancellationToken = default)
+    public async Task AddAsync(Trip trip, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(trip);
 
-        var exists = await dbContext.Trips
-            .AsNoTracking()
-            .AnyAsync(t => t.Id == trip.Id, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (exists)
-        {
-            dbContext.Trips.Update(trip);
-        }
-        else
-        {
-            await dbContext.Trips.AddAsync(trip, cancellationToken).ConfigureAwait(false);
-        }
-
+        await dbContext.Trips.AddAsync(trip, cancellationToken).ConfigureAwait(false);
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
 
-        cache.Remove(CacheKey(trip.Id));
+    public async Task UpdateAsync(Trip trip, byte[] expectedRowVersion, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(trip);
+        ArgumentNullException.ThrowIfNull(expectedRowVersion);
+
+        dbContext.Trips.Attach(trip);
+        dbContext.Entry(trip).Property(t => t.RowVersion!).OriginalValue = expectedRowVersion;
+        dbContext.Entry(trip).State = EntityState.Modified;
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConcurrencyConflictException(
+                "The trip was changed by someone else. Reload it and try again.");
+        }
+        finally
+        {
+            cache.Remove(CacheKey(trip.Id));
+        }
     }
 
     private static string CacheKey(TripId id) => $"trip:{id.Value}";

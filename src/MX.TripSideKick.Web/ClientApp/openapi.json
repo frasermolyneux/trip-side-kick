@@ -1,0 +1,1300 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "MX.TripSideKick.Web | v1",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://localhost/"
+    }
+  ],
+  "paths": {
+    "/info": {
+      "get": {
+        "tags": [
+          "MX.TripSideKick.Web"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/auth/login": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/auth/antiforgery": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMeResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/client-config": {
+      "get": {
+        "tags": [
+          "ClientConfig"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientConfigResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/invitations": {
+      "get": {
+        "tags": [
+          "Invitations"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Invitations"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/invitations/{invitationId}/resend": {
+      "post": {
+        "tags": [
+          "Invitations"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/invitations/{invitationId}/revoke": {
+      "post": {
+        "tags": [
+          "Invitations"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/invitations/accept": {
+      "post": {
+        "tags": [
+          "Invitations"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/members": {
+      "get": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MembershipResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/members/{membershipId}/role": {
+      "put": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "membershipId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MembershipResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/members/{membershipId}": {
+      "delete": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "membershipId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/members/leave": {
+      "post": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/travellers": {
+      "get": {
+        "tags": [
+          "Travellers"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TravellerResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}/travellers/self": {
+      "post": {
+        "tags": [
+          "Travellers"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkSelfAsTravellerRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkSelfAsTravellerRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkSelfAsTravellerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TravellerResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Travellers"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips": {
+      "post": {
+        "tags": [
+          "Trips"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTripRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTripRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTripRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TripResponse"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/v1/trips/{tripId}": {
+      "get": {
+        "tags": [
+          "Trips"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Trips"
+        ],
+        "parameters": [
+          {
+            "name": "tripId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTripRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTripRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTripRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": [ ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AcceptInvitationRequest": {
+        "required": [
+          "acceptanceToken"
+        ],
+        "type": "object",
+        "properties": {
+          "acceptanceToken": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "AuthMeResponse": {
+        "required": [
+          "isAuthenticated",
+          "displayName",
+          "subjectId"
+        ],
+        "type": "object",
+        "properties": {
+          "isAuthenticated": {
+            "type": "boolean"
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subjectId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ChangeRoleRequest": {
+        "required": [
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          }
+        }
+      },
+      "ClientConfigResponse": {
+        "required": [
+          "applicationInsightsConnectionString",
+          "signInEnabled",
+          "loginUrl",
+          "logoutUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "applicationInsightsConnectionString": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "signInEnabled": {
+            "type": "boolean"
+          },
+          "loginUrl": {
+            "type": "string"
+          },
+          "logoutUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateInvitationRequest": {
+        "required": [
+          "invitedEmail",
+          "role",
+          "linkKind",
+          "existingTravellerId",
+          "newTravellerDisplayName"
+        ],
+        "type": "object",
+        "properties": {
+          "invitedEmail": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "linkKind": {
+            "$ref": "#/components/schemas/TravellerLinkKind"
+          },
+          "existingTravellerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "newTravellerDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CreateTripRequest": {
+        "required": [
+          "name",
+          "destinations",
+          "reportingCurrencyCode",
+          "dates",
+          "coverImageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "destinations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "reportingCurrencyCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dates": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TripDatesModel"
+              }
+            ]
+          },
+          "coverImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "InvitationResponse": {
+        "required": [
+          "id",
+          "tripId",
+          "invitedEmail",
+          "role",
+          "status",
+          "linkKind",
+          "acceptanceUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tripId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "invitedEmail": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "status": {
+            "type": "string"
+          },
+          "linkKind": {
+            "$ref": "#/components/schemas/TravellerLinkKind"
+          },
+          "acceptanceUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "LinkSelfAsTravellerRequest": {
+        "required": [
+          "displayName"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "MembershipResponse": {
+        "required": [
+          "id",
+          "tripId",
+          "subjectId",
+          "role",
+          "eTag"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tripId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subjectId": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "eTag": {
+            "type": "string"
+          }
+        }
+      },
+      "MembershipRole": {
+        "type": "integer"
+      },
+      "StatusResponse": {
+        "required": [
+          "environment",
+          "authenticated"
+        ],
+        "type": "object",
+        "properties": {
+          "environment": {
+            "type": "string"
+          },
+          "authenticated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TravellerLinkKind": {
+        "type": "integer"
+      },
+      "TravellerResponse": {
+        "required": [
+          "id",
+          "tripId",
+          "displayName",
+          "linkedMembershipId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tripId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "linkedMembershipId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "TripDatesModel": {
+        "required": [
+          "status",
+          "startDate",
+          "endDate"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "endDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "TripResponse": {
+        "required": [
+          "id",
+          "name",
+          "destinations",
+          "reportingCurrencyCode",
+          "dates",
+          "coverImageUrl",
+          "eTag"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reportingCurrencyCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dates": {
+            "$ref": "#/components/schemas/TripDatesModel"
+          },
+          "coverImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eTag": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateTripRequest": {
+        "required": [
+          "name",
+          "destinations",
+          "reportingCurrencyCode",
+          "dates",
+          "coverImageUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "destinations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "reportingCurrencyCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dates": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TripDatesModel"
+              }
+            ]
+          },
+          "coverImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "description": "Same-origin session cookie established by the OpenID Connect sign-in flow. Mutating requests additionally require the X-CSRF-TOKEN header (see /v1/auth/antiforgery).",
+        "name": ".AspNetCore.Cookies",
+        "in": "cookie"
+      }
+    }
+  },
+  "security": [
+    {
+      "SessionCookie": [ ]
+    }
+  ],
+  "tags": [
+    {
+      "name": "MX.TripSideKick.Web"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "ClientConfig"
+    },
+    {
+      "name": "Invitations"
+    },
+    {
+      "name": "Members"
+    },
+    {
+      "name": "Status"
+    },
+    {
+      "name": "Travellers"
+    },
+    {
+      "name": "Trips"
+    }
+  ]
+}

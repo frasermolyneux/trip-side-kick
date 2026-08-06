@@ -2,10 +2,12 @@ using System.Threading.RateLimiting;
 
 using Azure.Identity;
 
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 
@@ -19,7 +21,9 @@ using MX.TripSideKick.Application.Abstractions;
 using MX.TripSideKick.Infrastructure;
 using MX.TripSideKick.Infrastructure.Options;
 using MX.TripSideKick.Web;
+using MX.TripSideKick.Web.ExceptionHandling;
 using MX.TripSideKick.Web.Hosting;
+using MX.TripSideKick.Web.OpenApi;
 using MX.TripSideKick.Web.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -37,6 +41,9 @@ builder.Services.AddOptions<ClientTelemetryOptions>()
 builder.Services.AddOptions<SecurityHeadersOptions>()
     .Bind(builder.Configuration.GetSection(SecurityHeadersOptions.SectionName));
 
+builder.Services.AddOptions<TestAuthOptions>()
+    .Bind(builder.Configuration.GetSection(TestAuthOptions.SectionName));
+
 // --- Modular monolith composition ------------------------------------------------------------
 builder.Services.AddTripSideKickApplication();
 builder.Services.AddTripSideKickInfrastructure(builder.Configuration);
@@ -46,6 +53,10 @@ builder.Services.AddTripSideKickInfrastructure(builder.Configuration);
 // App Service's system-assigned managed identity (AzureAd:ClientCredentials:0:SourceType =
 // SignedAssertionFromManagedIdentity) - no client secret, no certificate. Tokens are redeemed and
 // held server-side; the browser only ever receives the session cookie below.
+// A synthetic scheme name for the policy scheme below - never used to authenticate a request
+// directly, only as the DefaultChallengeScheme's forwarding target selector.
+const string ApiChallengeScheme = "TripSideKick.ApiChallenge";
+
 builder.Services
     .AddAuthentication(options =>
     {
@@ -54,7 +65,25 @@ builder.Services
         // resolved from the cookie, while only an explicit challenge (the /v1/auth/login
         // endpoint) starts the OpenID Connect handshake.
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+
+        // A plain "/v1 API" is consumed by the SPA via fetch/XHR, not browser navigation: it must
+        // never trigger the OpenID Connect authorization-code redirect flow (that hits the real
+        // identity provider over the network and, when it fails, previously surfaced as an opaque
+        // 500 instead of a 401 - see docs/testing.md). ApiChallengeScheme routes an automatic
+        // [Authorize] challenge to the Cookie handler for /v1 requests (whose OnRedirectToLogin /
+        // OnRedirectToAccessDenied below short-circuit to a plain 401/403) and to OpenIdConnect
+        // for everything else (browser-navigated Razor Pages / SPA shell routes, where a redirect
+        // to sign-in is the correct behavior). The explicit Challenge(...) call in
+        // AuthController.Login always names OpenIdConnectDefaults.AuthenticationScheme directly,
+        // so it is unaffected by this default.
+        options.DefaultChallengeScheme = ApiChallengeScheme;
+    })
+    .AddPolicyScheme(ApiChallengeScheme, displayName: "API-aware challenge selector", options =>
+    {
+        options.ForwardDefaultSelector = context =>
+            context.Request.Path.StartsWithSegments("/v1")
+                ? CookieAuthenticationDefaults.AuthenticationScheme
+                : OpenIdConnectDefaults.AuthenticationScheme;
     })
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
     // Forces the authorization-code + PKCE response type (ResponseType=code) instead of
@@ -75,6 +104,34 @@ builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefa
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.HttpOnly = true;
     options.LoginPath = "/v1/auth/login";
+
+    // The Cookie handler's default OnRedirectToLogin/OnRedirectToAccessDenied issue a 302 to
+    // LoginPath/AccessDeniedPath - correct for browser navigation, wrong for a JSON API. When
+    // ApiChallengeScheme (above) forwards a /v1 challenge here, respond with a plain status code
+    // instead so fetch/XHR callers (and ApiExceptionHandler-style JSON clients) see 401/403.
+    var defaultRedirectToLogin = options.Events.OnRedirectToLogin;
+    options.Events.OnRedirectToLogin = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/v1"))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        return defaultRedirectToLogin(context);
+    };
+
+    var defaultRedirectToAccessDenied = options.Events.OnRedirectToAccessDenied;
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/v1"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        return defaultRedirectToAccessDenied(context);
+    };
 });
 
 builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
@@ -93,9 +150,10 @@ builder.Services.AddHostRouting(builder.Configuration);
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddAuthorization();
-builder.Services.AddOpenApi("v1");
+builder.Services.AddOpenApi("v1", options => options.AddDocumentTransformer<CookieAuthSecuritySchemeTransformer>());
 builder.Services.AddHealthChecks();
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 // Same-origin, secure-by-default cookies ready for the identity slice.
 //
@@ -153,9 +211,17 @@ app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+// The registered ApiExceptionHandler (above) turns known application/domain exceptions into
+// ProblemDetails responses for /v1 API calls regardless of environment; anything it doesn't
+// recognise falls through to the Razor error page outside Development (never wired up locally,
+// so unhandled exceptions still surface as stack traces during development).
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    ExceptionHandlingPath = app.Environment.IsDevelopment() ? null : "/Error"
+});
 
 // Deny-by-default host validation and www -> apex canonicalisation. Runs before HTTPS redirection so
 // that a redirect Location is never built from an unrecognised Host header.
@@ -195,8 +261,9 @@ var appHosts = app.Services.AppHosts();
 app.MapHealthChecks("/api/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
 {
-    // Readiness deliberately does not probe SQL or Blob Storage in this slice; nothing is
-    // registered with the "ready" tag yet, so the app reports ready once the process is up.
+    // Only checks tagged "ready" affect this probe. When SQL is configured, a SQL readiness
+    // check is registered with this tag - it degrades gracefully rather than throwing, so a
+    // briefly unreachable database (e.g. serverless auto-pause resuming) never crashes startup.
     Predicate = check => check.Tags.Contains("ready")
 });
 app.MapInfoEndpoint();
@@ -207,6 +274,13 @@ app.MapRazorPages().RequireHost(siteHosts);
 // tripsidekick.app -> versioned API/BFF plus the React PWA shell.
 app.MapControllers().RequireHost(appHosts);
 app.MapOpenApi("/swagger/{documentName}/openapi.json").RequireHost(appHosts);
+
+// Deterministic sign-in for hermetic Playwright/E2E tests only - see TestAuthEndpoints' remarks
+// for the fail-closed gating (Development environment + explicit TestAuth:Enabled opt-in + not
+// running as an Azure App Service instance). MapTestAuthEndpoints itself is a no-op unless every
+// condition holds, so this line never adds a reachable route in a deployed environment.
+app.MapTestAuthEndpoints(app.Environment, app.Configuration, appHosts);
+
 app.MapFallbackToFile("index.html").RequireHost(appHosts);
 
 await app.RunAsync().ConfigureAwait(false);

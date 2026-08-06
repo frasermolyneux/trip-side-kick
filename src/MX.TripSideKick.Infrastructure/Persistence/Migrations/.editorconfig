@@ -1,0 +1,6 @@
+# EF Core migrations are generated code and are not analyzed or treated as warnings-as-errors.
+# Do not hand-edit these files; add a new migration instead (see docs/data-and-persistence.md).
+
+[*.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none

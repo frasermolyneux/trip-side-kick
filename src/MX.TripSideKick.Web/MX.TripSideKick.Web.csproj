@@ -30,6 +30,17 @@
     <PackageReference Include="Azure.Identity" Version="1.21.0" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.23.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <!--
+      dotnet-ef's design-time services must be discoverable from the *startup* project (this one),
+      not only the project containing the DbContext (MX.TripSideKick.Infrastructure) - see
+      https://learn.microsoft.com/en-us/ef/core/cli/dotnet#other-target-frameworks. PrivateAssets
+      keeps it out of the published/runtime output; it is only ever used by `dotnet ef` at
+      development/CI time (see docs/data-and-persistence.md and tests/e2e/support/migrate.ts).
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Identity.Web" Version="4.14.2" />
     <!-- Transitive Microsoft.OpenApi 2.0.0 carries GHSA-v5pm-xwqc-g5wc; pin to a patched build. -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />

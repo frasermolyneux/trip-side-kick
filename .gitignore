@@ -433,3 +433,11 @@ coverage/
 
 # Generated SPA output copied into the ASP.NET Core host
 src/MX.TripSideKick.Web/wwwroot/
+
+# Playwright E2E harness (tests/e2e) - reports, traces and the app instance it publishes/spawns
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/e2e/blob-report/
+tests/e2e/.app-publish/
+tests/e2e/support/.app-publish/
+tests/e2e/node_modules/

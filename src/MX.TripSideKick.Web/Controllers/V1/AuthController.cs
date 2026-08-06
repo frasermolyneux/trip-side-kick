@@ -67,7 +67,8 @@ public sealed class AuthController(ICurrentUser currentUser, IAntiforgery antifo
     [AllowAnonymous]
     public ActionResult<AuthMeResponse> Me() => Ok(new AuthMeResponse(
         currentUser.IsAuthenticated,
-        currentUser.DisplayName));
+        currentUser.DisplayName,
+        currentUser.SubjectId));
 
     // Only ever redirect back into this app - an open redirect would let a phishing link ride the
     // sign-in/sign-out flow to an attacker-controlled destination.
@@ -78,7 +79,13 @@ public sealed class AuthController(ICurrentUser currentUser, IAntiforgery antifo
 /// <summary>Response contract for <c>GET /v1/auth/me</c>.</summary>
 /// <param name="IsAuthenticated">Whether the caller has an active signed-in session.</param>
 /// <param name="DisplayName">The signed-in user's display name, or <c>null</c> when anonymous. PII - never log this value.</param>
-public sealed record AuthMeResponse(bool IsAuthenticated, string? DisplayName);
+/// <param name="SubjectId">
+/// The signed-in user's opaque subject id (Entra <c>oid</c>), or <c>null</c> when anonymous. Not
+/// PII - it is the same stable, non-reassignable identifier authorization is keyed on
+/// server-side (see docs/identity-and-access.md) and lets the client determine "is this me"
+/// (e.g. against a <c>MembershipResponse.SubjectId</c>) without ever comparing on email/name.
+/// </param>
+public sealed record AuthMeResponse(bool IsAuthenticated, string? DisplayName, string? SubjectId);
 
 /// <summary>Response contract for <c>GET /v1/auth/antiforgery</c>.</summary>
 /// <param name="Token">The request-token value to echo back in the <c>X-CSRF-TOKEN</c> header on state-changing calls.</param>

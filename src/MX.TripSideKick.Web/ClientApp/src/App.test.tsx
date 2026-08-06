@@ -1,20 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 
 import { App } from './App';
 import { server } from './mocks/server';
 
+function renderApp() {
+  return render(
+    <MemoryRouter initialEntries={['/']}>
+      <App />
+    </MemoryRouter>
+  );
+}
+
 describe('App', () => {
   it('renders the signed-out shell once the API responds', async () => {
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByRole('heading', { name: /you are signed out/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/v1/auth/login');
   });
 
   it('shows the environment reported by the versioned API', async () => {
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByText(/Test/)).toBeInTheDocument();
   });
@@ -22,11 +31,11 @@ describe('App', () => {
   it('renders the signed-in shell with the display name from /v1/auth/me, never a token', async () => {
     server.use(
       http.get('/v1/auth/me', () =>
-        HttpResponse.json({ isAuthenticated: true, displayName: 'Ada Lovelace' })
+        HttpResponse.json({ isAuthenticated: true, displayName: 'Ada Lovelace', subjectId: 'subject-1' })
       )
     );
 
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByRole('heading', { name: /welcome back, ada lovelace/i })).toBeInTheDocument();
     // Sign-out is a POST (guarded by an antiforgery token) rather than a plain link, so a
@@ -46,7 +55,7 @@ describe('App', () => {
       )
     );
 
-    render(<App />);
+    renderApp();
 
     const signIn = await screen.findByRole('link', { name: /sign in/i });
     expect(signIn).toHaveAttribute('aria-disabled', 'true');

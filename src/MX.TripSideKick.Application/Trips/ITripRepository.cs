@@ -14,7 +14,14 @@ public interface ITripRepository
 {
     Task<Trip?> GetAsync(TripId id, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Trip>> ListAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Trip>> GetManyAsync(IReadOnlyCollection<TripId> ids, CancellationToken cancellationToken = default);
 
-    Task UpsertAsync(Trip trip, CancellationToken cancellationToken = default);
+    Task AddAsync(Trip trip, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Persists changes to an existing trip, enforcing optimistic concurrency against
+    /// <paramref name="expectedRowVersion"/>. Throws
+    /// <see cref="Common.ConcurrencyConflictException"/> when the stored row version has moved on.
+    /// </summary>
+    Task UpdateAsync(Trip trip, byte[] expectedRowVersion, CancellationToken cancellationToken = default);
 }

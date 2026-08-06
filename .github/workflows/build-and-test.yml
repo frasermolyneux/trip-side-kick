@@ -60,6 +60,66 @@ jobs:
           src-folder: "src"
           skip-nuget-artifact-upload: "true"
 
+  e2e-tests:
+    needs: [detect-changes, build-and-test]
+    if: needs.detect-changes.outputs.src == 'true'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          # Nerdbank.GitVersioning needs full history to calculate version height;
+          # the default shallow clone fails the build with MSB4018.
+          fetch-depth: 0
+
+      # Hermetic Playwright suite (Journeys 1 & 2) - Testcontainers SQL Server (Docker is
+      # preinstalled on ubuntu-latest runners), deterministic test-auth, no cloud/Entra/secrets.
+      # See docs/testing.md.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore dotnet tools (dotnet-ef)
+        run: dotnet tool restore
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install E2E dependencies
+        working-directory: tests/e2e
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
+
+      - name: Install Playwright browsers
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Trust local HTTPS dev certificate
+        run: dotnet dev-certs https
+
+      - name: Run Playwright E2E suite
+        working-directory: tests/e2e
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
   terraform-plan-dev:
     needs: detect-changes
     if: needs.detect-changes.outputs.terraform == 'true'
