@@ -10,7 +10,8 @@ resource "azurerm_linux_web_app" "app" {
   https_only = true
 
   identity {
-    type = "SystemAssigned"
+    type         = "SystemAssigned, UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.sql_data.id]
   }
 
   # checkov:skip=CKV_AZURE_222:This is a public-facing brochure/PWA site by design (see
@@ -63,12 +64,14 @@ resource "azurerm_linux_web_app" "app" {
     "BlobStorage__DocumentsContainerName"      = local.blob_container_names.documents
     "BlobStorage__DataProtectionContainerName" = local.blob_container_names.dataprotection
 
-    # Managed-identity SQL auth - no secret, no connection string password. The system-assigned
-    # identity is granted EXACTLY db_datareader/db_datawriter by a CI step after apply (see
-    # terraform/scripts/configure-sql-data-access.ps1 and docs/data-and-persistence.md); until that
-    # step has run for a brand-new environment, SqlTripRepository etc. will fail on first use, but
+    # Managed-identity SQL auth - no secret, no connection string password. A dedicated user-assigned
+    # managed identity (managed_identity.tf) is used for data access so its client_id can be embedded
+    # here and the contained database user can be created deterministically by SID (see
+    # terraform/scripts/configure-sql-data-access.ps1). The identity is granted EXACTLY
+    # db_datareader/db_datawriter by a CI step after apply (see docs/data-and-persistence.md); until
+    # that step has run for a brand-new environment, SqlTripRepository etc. will fail on first use, but
     # startup and health/readiness never crash - see SqlReadinessHealthCheck.
-    "Sql__ConnectionString" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Database=${azurerm_mssql_database.db.name};Authentication=Active Directory Managed Identity;Encrypt=true;TrustServerCertificate=false;Connection Timeout=30;"
+    "Sql__ConnectionString" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Database=${azurerm_mssql_database.db.name};Authentication=Active Directory Managed Identity;User Id=${azurerm_user_assigned_identity.sql_data.client_id};Encrypt=true;TrustServerCertificate=false;Connection Timeout=30;"
 
     "KeyVault__Uri" = azurerm_key_vault.kv.vault_uri
 

@@ -9,12 +9,30 @@ the schema for Trips, Memberships, Travellers and Invitations.
 ## Why a CI step, not a Terraform resource
 
 `terraform/sql.tf` provisions the Entra-only Azure SQL logical server and database. It deliberately
-stops there: creating the **contained database user** for the App Service's managed identity
-(`CREATE USER [...] FROM EXTERNAL PROVIDER`) is T-SQL, not an ARM or Graph operation, so it cannot
-be an `azurerm`/`azuread` Terraform resource, and applying EF Core migrations is likewise outside
-Terraform's remit. This mirrors the existing `configure-external-id-sign-up.sh` pattern
+stops there: creating the **contained database user** for the App Service's data-access managed
+identity (a `CREATE USER … WITH SID … TYPE = E` statement) is T-SQL, not an ARM or Graph operation,
+so it cannot be an `azurerm`/`azuread` Terraform resource, and applying EF Core migrations is likewise
+outside Terraform's remit. This mirrors the existing `configure-external-id-sign-up.sh` pattern
 (`docs/identity-and-access.md`): a **discrete CI step**, authenticated via its own `azure/login`
 under the workload's federated identity, runs after `terraform apply`.
+
+## Why a dedicated user-assigned identity (and SID, not `FROM EXTERNAL PROVIDER`)
+
+The App Service uses a **dedicated user-assigned managed identity** (`terraform/managed_identity.tf`)
+for SQL data access — separate from its system-assigned identity, which continues to back the Entra
+External ID sign-in federated credential (`terraform/identity.tf`).
+
+The reason is the contained-user creation. `CREATE USER [name] FROM EXTERNAL PROVIDER` makes Azure SQL
+resolve the identity through Microsoft Graph using the **SQL server's own identity**, which then needs
+the Entra **Directory Readers** role. This workload's service principal is *not* granted the ability
+to assign that role (it isn't in the `platform-workloads` definition, and "Cloud Application
+Administrator" doesn't cover directory-role membership), and it also lacks the Graph permission to look
+the identity up itself. A **user-assigned** identity sidesteps all of this: Terraform exposes its
+`client_id` directly, so the contained user is created **by SID** —
+`CREATE USER [name] WITH SID = <client_id-bytes>, TYPE = E` — which performs no directory lookup and
+needs no Directory Readers role. (The wider org pattern in `portal-core` grants Directory Readers to a
+purpose-built SQL-server identity provisioned by a separate platform stack; trip-side-kick has no such
+stack, so the SID form is the self-contained equivalent.)
 
 The workload service principal is deliberately the SQL server's Entra admin
 (`azuread_administrator` block in `terraform/sql.tf`), so it is authorized to both create the
@@ -38,10 +56,12 @@ session:
    database is a safe no-op.
 3. **`Invoke-Sqlcmd -AccessToken`** (via the `SqlServer` PowerShell module, installed on first use if
    missing) runs two idempotent operations against the real database, using the token from step 1:
-   - `CREATE USER [<web app name>] FROM EXTERNAL PROVIDER` — guarded by
-     `IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = ...)`. The **display name**
-     of an App Service's system-assigned managed identity, as Entra represents it, is exactly the
-     web app's name — sourced from `terraform output web_app_name`, never hardcoded.
+   - `CREATE USER [<identity name>] WITH SID = <sid>, TYPE = E` — guarded by
+     `IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = ...)`. The user **name** is the
+     data-access identity's name (`terraform output sql_data_identity_name`); the **SID** is that
+     identity's `client_id` (`terraform output sql_data_identity_client_id`) converted to bytes
+     (`System.Guid.ToByteArray()` order), never hardcoded. `TYPE = E` marks it an external (Entra)
+     principal.
    - `ALTER ROLE db_datareader/db_datawriter ADD MEMBER [...]` — each guarded by a
      `sys.database_role_members` existence check.
    - Then applies `migrate.sql` from step 2.
@@ -53,7 +73,8 @@ no-op, and an already-applied migration is a no-op per its `--idempotent` guard.
 terraform/scripts/configure-sql-data-access.ps1 `
   -SqlServerFqdn "<terraform output sql_server_fully_qualified_domain_name>" `
   -SqlDatabaseName "<terraform output sql_database_name>" `
-  -ManagedIdentityName "<terraform output web_app_name>" `
+  -ManagedIdentityName "<terraform output sql_data_identity_name>" `
+  -ManagedIdentityClientId "<terraform output sql_data_identity_client_id>" `
   -MigrationsScriptPath "<path to the --idempotent migrate.sql>"
 ```
 
@@ -62,18 +83,19 @@ terraform/scripts/configure-sql-data-access.ps1 `
 | Principal | Grants | Why |
 | --- | --- | --- |
 | Workload service principal (`spn-trip-side-kick-<env>`) | SQL server Entra **admin** (full control) | Must create users and apply schema changes; never used by the running app |
-| App Service system-assigned managed identity | **`db_datareader` + `db_datawriter` only** | The runtime app reads/writes rows; it never applies migrations or alters schema. No `db_ddladmin`, no `db_owner` |
+| App Service **data-access user-assigned managed identity** (`id-trip-side-kick-<env>-<location>`) | **`db_datareader` + `db_datawriter` only** | The runtime app reads/writes rows; it never applies migrations or alters schema. No `db_ddladmin`, no `db_owner` |
 
 ## Connection string (no secrets)
 
 `terraform/web_app.tf` sets:
 
 ```
-Sql__ConnectionString = "Server=tcp:<fqdn>,1433;Database=<db>;Authentication=Active Directory Managed Identity;Encrypt=true;TrustServerCertificate=false;Connection Timeout=30;"
+Sql__ConnectionString = "Server=tcp:<fqdn>,1433;Database=<db>;Authentication=Active Directory Managed Identity;User Id=<data-access identity client_id>;Encrypt=true;TrustServerCertificate=false;Connection Timeout=30;"
 ```
 
-`Authentication=Active Directory Managed Identity` means the Microsoft.Data.SqlClient driver
-acquires its own Entra token via the App Service's system-assigned identity at connection time —
+`Authentication=Active Directory Managed Identity` with `User Id=<client_id>` means the
+Microsoft.Data.SqlClient driver acquires its own Entra token via the App Service's **user-assigned**
+data-access identity at connection time —
 **no password, no secret, ever** (`standards.oidc-and-secrets`). This satisfies the
 `terraform/web_app.tf` `TODO(data-slice)` marker that previously left the setting empty.
 

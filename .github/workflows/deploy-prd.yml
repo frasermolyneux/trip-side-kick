@@ -135,6 +135,8 @@ jobs:
           echo "web_app_name=$(terraform output -raw web_app_name)" >> $GITHUB_OUTPUT
           echo "sql_server_fqdn=$(terraform output -raw sql_server_fully_qualified_domain_name)" >> $GITHUB_OUTPUT
           echo "sql_database_name=$(terraform output -raw sql_database_name)" >> $GITHUB_OUTPUT
+          echo "sql_data_identity_name=$(terraform output -raw sql_data_identity_name)" >> $GITHUB_OUTPUT
+          echo "sql_data_identity_client_id=$(terraform output -raw sql_data_identity_client_id)" >> $GITHUB_OUTPUT
         env:
           ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
@@ -178,9 +180,9 @@ jobs:
             --project src/MX.TripSideKick.Infrastructure \
             -o "${{ runner.temp }}/migrate-dev.sql"
 
-      # Creates the contained database user for the App Service's system-assigned managed identity
-      # (db_datareader/db_datawriter only) and applies the migrations above - both as the workload
-      # service principal, which is the SQL server's Entra admin (terraform/sql.tf). See
+      # Creates the contained database user for the App Service's data-access user-assigned managed
+      # identity (by SID, db_datareader/db_datawriter only) and applies the migrations above - both as
+      # the workload service principal, which is the SQL server's Entra admin (terraform/sql.tf). See
       # terraform/scripts/configure-sql-data-access.ps1 and docs/data-and-persistence.md.
       - name: Configure SQL data access (contained user + migrations)
         shell: pwsh
@@ -188,7 +190,8 @@ jobs:
           terraform/scripts/configure-sql-data-access.ps1 `
             -SqlServerFqdn "${{ steps.terraform-output-dev.outputs.sql_server_fqdn }}" `
             -SqlDatabaseName "${{ steps.terraform-output-dev.outputs.sql_database_name }}" `
-            -ManagedIdentityName "${{ steps.terraform-output-dev.outputs.web_app_name }}" `
+            -ManagedIdentityName "${{ steps.terraform-output-dev.outputs.sql_data_identity_name }}" `
+            -ManagedIdentityClientId "${{ steps.terraform-output-dev.outputs.sql_data_identity_client_id }}" `
             -MigrationsScriptPath "${{ runner.temp }}/migrate-dev.sql"
 
     outputs:
@@ -272,6 +275,8 @@ jobs:
           echo "web_app_name=$(terraform output -raw web_app_name)" >> $GITHUB_OUTPUT
           echo "sql_server_fqdn=$(terraform output -raw sql_server_fully_qualified_domain_name)" >> $GITHUB_OUTPUT
           echo "sql_database_name=$(terraform output -raw sql_database_name)" >> $GITHUB_OUTPUT
+          echo "sql_data_identity_name=$(terraform output -raw sql_data_identity_name)" >> $GITHUB_OUTPUT
+          echo "sql_data_identity_client_id=$(terraform output -raw sql_data_identity_client_id)" >> $GITHUB_OUTPUT
         env:
           ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
@@ -315,9 +320,9 @@ jobs:
             --project src/MX.TripSideKick.Infrastructure \
             -o "${{ runner.temp }}/migrate-prd.sql"
 
-      # Creates the contained database user for the App Service's system-assigned managed identity
-      # (db_datareader/db_datawriter only) and applies the migrations above - both as the workload
-      # service principal, which is the SQL server's Entra admin (terraform/sql.tf). See
+      # Creates the contained database user for the App Service's data-access user-assigned managed
+      # identity (by SID, db_datareader/db_datawriter only) and applies the migrations above - both as
+      # the workload service principal, which is the SQL server's Entra admin (terraform/sql.tf). See
       # terraform/scripts/configure-sql-data-access.ps1 and docs/data-and-persistence.md.
       - name: Configure SQL data access (contained user + migrations)
         shell: pwsh
@@ -325,7 +330,8 @@ jobs:
           terraform/scripts/configure-sql-data-access.ps1 `
             -SqlServerFqdn "${{ steps.terraform-output-prd.outputs.sql_server_fqdn }}" `
             -SqlDatabaseName "${{ steps.terraform-output-prd.outputs.sql_database_name }}" `
-            -ManagedIdentityName "${{ steps.terraform-output-prd.outputs.web_app_name }}" `
+            -ManagedIdentityName "${{ steps.terraform-output-prd.outputs.sql_data_identity_name }}" `
+            -ManagedIdentityClientId "${{ steps.terraform-output-prd.outputs.sql_data_identity_client_id }}" `
             -MigrationsScriptPath "${{ runner.temp }}/migrate-prd.sql"
 
     outputs:
