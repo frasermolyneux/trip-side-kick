@@ -34,6 +34,7 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddScoped<InvitationService>();
         services.TryAddScoped<ItineraryPlanningService>();
         services.TryAddScoped<TripTravellerFilterService>();
+        services.TryAddScoped<TripSubjectDisplayNameResolver>();
 
         return services;
     }

@@ -25,12 +25,15 @@ namespace MX.TripSideKick.Web.Controllers.V1;
 public sealed class ItineraryController(
     ItineraryPlanningService itineraryPlanning,
     TripTravellerFilterService travellerFilterService,
+    TripSubjectDisplayNameResolver displayNameResolver,
     ICurrentUser currentUser) : ControllerBase
 {
     private readonly ItineraryPlanningService itineraryPlanning = itineraryPlanning
         ?? throw new ArgumentNullException(nameof(itineraryPlanning));
     private readonly TripTravellerFilterService travellerFilterService = travellerFilterService
         ?? throw new ArgumentNullException(nameof(travellerFilterService));
+    private readonly TripSubjectDisplayNameResolver displayNameResolver = displayNameResolver
+        ?? throw new ArgumentNullException(nameof(displayNameResolver));
     private readonly ICurrentUser currentUser = currentUser ?? throw new ArgumentNullException(nameof(currentUser));
 
     // ---------- Items ----------
@@ -172,7 +175,9 @@ public sealed class ItineraryController(
     {
         var comments = await itineraryPlanning.ListCommentsAsync(
             new TripId(tripId), new ItineraryItemId(itemId), RequireSubjectId(), cancellationToken).ConfigureAwait(false);
-        return Ok(comments.Select(ItineraryCommentResponse.From).ToList());
+        var names = await displayNameResolver.ResolveAsync(
+            new TripId(tripId), comments.Select(c => c.AuthorSubjectId), cancellationToken).ConfigureAwait(false);
+        return Ok(comments.Select(c => ItineraryCommentResponse.From(c, LookupName(names, c.AuthorSubjectId))).ToList());
     }
 
     [HttpPost("items/{itemId:guid}/comments")]
@@ -183,7 +188,10 @@ public sealed class ItineraryController(
         ArgumentNullException.ThrowIfNull(request);
         var comment = await itineraryPlanning.AddCommentAsync(
             new TripId(tripId), new ItineraryItemId(itemId), RequireSubjectId(), request.Body, cancellationToken).ConfigureAwait(false);
-        return CreatedAtAction(nameof(ListComments), new { tripId, itemId }, ItineraryCommentResponse.From(comment));
+        var names = await displayNameResolver.ResolveAsync(
+            new TripId(tripId), new[] { comment.AuthorSubjectId }, cancellationToken).ConfigureAwait(false);
+        return CreatedAtAction(nameof(ListComments), new { tripId, itemId },
+            ItineraryCommentResponse.From(comment, LookupName(names, comment.AuthorSubjectId)));
     }
 
     // ---------- Activity feed ----------
@@ -194,8 +202,13 @@ public sealed class ItineraryController(
     {
         var entries = await itineraryPlanning.ListActivityFeedAsync(
             new TripId(tripId), RequireSubjectId(), cancellationToken).ConfigureAwait(false);
-        return Ok(entries.Select(TripActivityFeedEntryResponse.From).ToList());
+        var names = await displayNameResolver.ResolveAsync(
+            new TripId(tripId), entries.Select(e => e.ActorSubjectId), cancellationToken).ConfigureAwait(false);
+        return Ok(entries.Select(e => TripActivityFeedEntryResponse.From(e, LookupName(names, e.ActorSubjectId))).ToList());
     }
+
+    private static string LookupName(IReadOnlyDictionary<string, string> names, string subjectId) =>
+        names.TryGetValue(subjectId, out var name) ? name : TripSubjectDisplayNameResolver.FallbackDisplayName;
 
     // ---------- Traveller filter ----------
 
@@ -299,15 +312,15 @@ public sealed record ItineraryCommentResponse(
     Guid Id,
     Guid TripId,
     Guid ItineraryItemId,
-    string AuthorSubjectId,
+    string AuthorDisplayName,
     string Body,
     DateTimeOffset CreatedAt)
 {
-    public static ItineraryCommentResponse From(ItineraryComment comment) => new(
+    public static ItineraryCommentResponse From(ItineraryComment comment, string authorDisplayName) => new(
         comment.Id.Value,
         comment.TripId.Value,
         comment.ItineraryItemId.Value,
-        comment.AuthorSubjectId,
+        authorDisplayName,
         comment.Body,
         comment.CreatedAt.ToDateTimeOffset());
 }
@@ -315,16 +328,16 @@ public sealed record ItineraryCommentResponse(
 public sealed record TripActivityFeedEntryResponse(
     Guid Id,
     Guid TripId,
-    string ActorSubjectId,
+    string ActorDisplayName,
     string EventType,
     string Summary,
     DateTimeOffset OccurredAt,
     Guid? ItineraryItemId)
 {
-    public static TripActivityFeedEntryResponse From(TripActivityFeedEntry entry) => new(
+    public static TripActivityFeedEntryResponse From(TripActivityFeedEntry entry, string actorDisplayName) => new(
         entry.Id.Value,
         entry.TripId.Value,
-        entry.ActorSubjectId,
+        actorDisplayName,
         entry.EventType.ToString(),
         entry.Summary,
         entry.OccurredAt.ToDateTimeOffset(),
