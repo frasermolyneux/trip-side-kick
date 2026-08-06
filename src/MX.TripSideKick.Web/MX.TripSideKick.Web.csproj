@@ -43,7 +43,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Identity.Web" Version="4.14.2" />
     <!-- Transitive Microsoft.OpenApi 2.0.0 carries GHSA-v5pm-xwqc-g5wc; pin to a patched build. -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.9.0" />
     <PackageReference Include="MX.Observability.ApplicationInsights.AspNetCore" Version="1.1.28" />
   </ItemGroup>
 
