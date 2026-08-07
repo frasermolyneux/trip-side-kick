@@ -5,6 +5,7 @@ using MX.TripSideKick.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -12,9 +13,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MX.TripSideKick.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(TripSideKickDbContext))]
-    partial class TripSideKickDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806193446_AddItineraryAndTravellerFilter")]
+    partial class AddItineraryAndTravellerFilter
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

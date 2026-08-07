@@ -10,9 +10,9 @@ external network at test-run time** — see each section below for exactly how.
 All three tiers were executed for real (Docker became available partway through this slice's
 authoring) and are green as of this branch:
 
-- **Unit tests**: 149/149 passing (`dotnet test --filter "FullyQualifiedName!~IntegrationTests"`).
-- **Integration tests**: all passing against a real Testcontainers SQL Server 2022 container.
-- **Playwright E2E**: 13/13 specs passing (~33s once the app/DB are up).
+- **Unit tests**: 183/183 passing (`dotnet test --filter "FullyQualifiedName!~IntegrationTests"`).
+- **Integration tests**: 21/21 passing against a real Testcontainers SQL Server 2022 container.
+- **Playwright E2E**: 14 specs (13 baseline + `journey-itinerary.spec.ts`) passing (~40s once the app/DB are up).
 
 ### Bugs found and fixed while getting these tiers green
 
@@ -219,6 +219,7 @@ below.
 | `tests/e2e/tests/host-routing.spec.ts` | An unrecognised `Host` header yields 400 on **any** path (not just app routes); operational endpoints (`/api/health/live`) work regardless of host; `/v1/trips` returns 401 on the app host vs. 400 on an unrecognised host — proves the host-routing split is real, not just unit-tested |
 | `tests/e2e/tests/anonymous.spec.ts` | `GET /v1/trips` → 401 with no session; navigating to `/trips` triggers the app's `RequireAuth` redirect to `/v1/auth/login` — intercepted via `page.route()` so the suite never actually reaches real Entra (see [hermeticity mitigation](#hermeticity-mitigation-the-anonymous-redirect-risk)) |
 | `tests/e2e/tests/journey-1-and-2.spec.ts` | Full serial journey: **Owner** creates a trip (asserts required-name-only creation, the "dates not confirmed" banner, and the manage-members entry point) → invites an **Editor**, a **Viewer**, and a mismatched-identity invitee, extracting each stubbed acceptance link (`data-testid="invitation-acceptance-link"`'s `href`) → **Editor accepts** and role is verified as `1` (Editor) → **Viewer accepts** and role is verified as `0` (Viewer) → a **mismatched identity** attempts to accept the third invite and is refused (`accept-invitation-error` visible; never appears in the members list) → **Editor edits trip content successfully but cannot manage membership** (no `manage-members-link`; direct API `PUT .../members/{id}/role` → 403) → **Viewer is fully read-only** (no `edit-trip-name`/`manage-members-link`; direct API `PUT /v1/trips/{tripId}` → 403) → **last-owner protection** in both UI (no `leave-trip-button` success path / no `remove-member-{id}` for the sole owner) and API (`PUT .../role` and `DELETE .../members/{id}` on the last Owner both → 409) |
+| `tests/e2e/tests/journey-itinerary.spec.ts` | **Slice 5 — itinerary + collaborative planning.** Owner creates a trip and confirms its dates (via `PUT /v1/trips` since the dashboard doesn't yet expose date confirmation in the UI), invites an Editor and Viewer. Editor creates an idea from the itinerary page, schedules it onto a day inside the confirmed window, and the activity feed picks up ≥ 2 entries. Viewer sees the item, has no `create-idea-form`/`schedule-item`/`delete-item` controls, **can** add a comment (Viewer-permitted mutation), and direct raw `POST /v1/trips/{id}/itinerary/items` + `DELETE .../items/{id}` return **403** as server-side proof. Applicability + filter round-trip: setting an item's applicability to just the Editor's traveller and switching the Owner's filter to `me` **removes** it from the Owner's list; switching back to `everyone` restores it. |
 
 Every identity uses its own isolated `browser.newContext()` (its own cookie jar), since
 `/testauth/signin` is cookie-based — reusing one context across identities would silently mix

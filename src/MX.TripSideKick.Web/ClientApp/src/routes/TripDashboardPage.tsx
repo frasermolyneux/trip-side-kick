@@ -155,6 +155,9 @@ export function TripDashboardPage() {
       </List>
 
       <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+        <Button component={RouterLink} to={`/trips/${tripId}/itinerary`} variant="outlined" data-testid="itinerary-link">
+          Open itinerary
+        </Button>
         {isOwner && (
           <Button component={RouterLink} to={`/trips/${tripId}/members`} variant="outlined" data-testid="manage-members-link">
             Manage members &amp; invitations
