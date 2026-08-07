@@ -56,6 +56,7 @@ public sealed class ItineraryController(
 
     [HttpPost("items")]
     [ValidateAntiForgeryToken]
+    [ProducesResponseType(typeof(ItineraryItemResponse), StatusCodes.Status201Created)]
     public async Task<ActionResult<ItineraryItemResponse>> CreateIdea(
         Guid tripId, [FromBody] CreateItineraryItemRequest request, CancellationToken cancellationToken)
     {
@@ -160,6 +161,7 @@ public sealed class ItineraryController(
 
     [HttpDelete("items/{itemId:guid}")]
     [ValidateAntiForgeryToken]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(Guid tripId, Guid itemId, CancellationToken cancellationToken)
     {
         await itineraryPlanning.DeleteAsync(
@@ -182,6 +184,7 @@ public sealed class ItineraryController(
 
     [HttpPost("items/{itemId:guid}/comments")]
     [ValidateAntiForgeryToken]
+    [ProducesResponseType(typeof(ItineraryCommentResponse), StatusCodes.Status201Created)]
     public async Task<ActionResult<ItineraryCommentResponse>> AddComment(
         Guid tripId, Guid itemId, [FromBody] AddCommentRequest request, CancellationToken cancellationToken)
     {
