@@ -42,8 +42,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Identity.Web" Version="4.14.2" />
-    <!-- Transitive Microsoft.OpenApi 2.0.0 carries GHSA-v5pm-xwqc-g5wc; pin to a patched build. -->
-    <PackageReference Include="Microsoft.OpenApi" Version="3.10.0" />
+    <!--
+      Transitive Microsoft.OpenApi 2.0.0 carries GHSA-v5pm-xwqc-g5wc; pin to a patched build.
+      Must stay < 3.0.0: Microsoft.AspNetCore.OpenApi 10.0.x requires Microsoft.OpenApi
+      (>= 2.7.5 && < 3.0.0), so a 3.x bump trips NU1608 (warnings are errors here).
+    -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
     <PackageReference Include="MX.Observability.ApplicationInsights.AspNetCore" Version="1.1.28" />
   </ItemGroup>
 
