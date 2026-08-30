@@ -64,7 +64,7 @@ describe('TripItineraryPage', () => {
 
     expect(await screen.findByText('Boat trip')).toBeInTheDocument();
     expect(screen.queryByTestId('create-idea-form')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('schedule-item')).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`schedule-item-${idea.id}`)).not.toBeInTheDocument();
     expect(screen.queryByTestId('delete-item')).not.toBeInTheDocument();
   });
 

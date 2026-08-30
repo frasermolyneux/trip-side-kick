@@ -112,11 +112,12 @@ test.describe.serial('Journey 5: itinerary + collaborative planning', () => {
     await page.getByTestId('idea-title-input').fill('Colosseum tour');
     await page.getByTestId('create-idea-submit').click();
 
-    await expect(page.getByTestId('itinerary-item-title')).toHaveText('Colosseum tour');
+    const itineraryItem = page.getByTestId(/^itinerary-item-/).filter({ hasText: 'Colosseum tour' });
+    await expect(itineraryItem.getByTestId('itinerary-item-title')).toHaveText('Colosseum tour');
 
     // Schedule onto a confirmed-window date.
-    await page.getByTestId('schedule-date-input').fill('2027-05-02');
-    await page.getByTestId('schedule-item').click();
+    await itineraryItem.getByTestId(/^schedule-date-input-/).fill('2027-05-02');
+    await itineraryItem.getByTestId(/^schedule-item-/).click();
     await expect(page.getByText(/Scheduled 2027-05-02/)).toBeVisible();
 
     // Activity feed shows at least the create + schedule entries.
@@ -133,7 +134,7 @@ test.describe.serial('Journey 5: itinerary + collaborative planning', () => {
 
     await expect(page.getByTestId('itinerary-item-title')).toHaveText('Colosseum tour');
     await expect(page.getByTestId('create-idea-form')).toHaveCount(0);
-    await expect(page.getByTestId('schedule-item')).toHaveCount(0);
+    await expect(page.getByTestId(/^schedule-item-/)).toHaveCount(0);
     await expect(page.getByTestId('delete-item')).toHaveCount(0);
 
     // Viewer can comment.

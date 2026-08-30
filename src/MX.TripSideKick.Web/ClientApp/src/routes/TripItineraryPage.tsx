@@ -476,9 +476,9 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
                 type="date"
                 value={scheduleDate}
                 onChange={(e) => onScheduleDateChange(e.target.value)}
-                slotProps={{ htmlInput: { 'data-testid': 'schedule-date-input' } }}
+                slotProps={{ htmlInput: { 'data-testid': `schedule-date-input-${item.id}` } }}
               />
-              <Button size="small" onClick={onSchedule} data-testid="schedule-item">Schedule</Button>
+              <Button size="small" onClick={onSchedule} data-testid={`schedule-item-${item.id}`}>Schedule</Button>
             </>
           )}
           {item.schedule.status === 'scheduled' && (
