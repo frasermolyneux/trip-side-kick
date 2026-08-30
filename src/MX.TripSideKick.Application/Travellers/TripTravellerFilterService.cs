@@ -52,7 +52,9 @@ public sealed class TripTravellerFilterService(
             // (TripId, MembershipId) means we can safely re-read and return that one.
             return await filterRepository
                 .GetForTripAndMembershipAsync(tripId, membership.Id, cancellationToken)
-                .ConfigureAwait(false) ?? created;
+                .ConfigureAwait(false)
+                ?? throw new InvalidOperationException(
+                    "Traveller filter row disappeared immediately after a concurrency conflict.");
         }
     }
 

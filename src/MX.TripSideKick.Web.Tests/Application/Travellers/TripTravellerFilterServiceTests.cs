@@ -124,6 +124,26 @@ public sealed class TripTravellerFilterServiceTests
             Times.Once);
     }
 
+    [Fact]
+    public async Task GetOrCreate_throws_if_concurrent_create_conflict_occurs_and_re_read_still_returns_null()
+    {
+        filterRepository
+            .SetupSequence(r => r.GetForTripAndMembershipAsync(tripId, membership.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TripTravellerFilter?)null)
+            .ReturnsAsync((TripTravellerFilter?)null);
+
+        filterRepository
+            .Setup(r => r.AddAsync(It.IsAny<TripTravellerFilter>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ConcurrencyConflictException("Another request created the row first."));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => sut.GetOrCreateForCallerAsync(tripId, SubjectId));
+
+        Assert.Equal(
+            "Traveller filter row disappeared immediately after a concurrency conflict.",
+            ex.Message);
+    }
+
     private static TripTravellerFilter WithRowVersion(TripTravellerFilter filter, byte[] rowVersion)
     {
         typeof(TripTravellerFilter)
