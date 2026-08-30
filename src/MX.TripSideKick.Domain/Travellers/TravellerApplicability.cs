@@ -35,8 +35,8 @@ public static class TravellerApplicability
     /// <summary>
     /// True when the thing described by <paramref name="applicableTravellerIds"/> applies to at
     /// least one of the travellers in <paramref name="candidateTravellerIds"/>. "Applies to
-    /// everyone" (empty <paramref name="applicableTravellerIds"/>) intersects any non-empty
-    /// candidate set trivially.
+    /// everyone" (empty <paramref name="applicableTravellerIds"/>) intersects every candidate
+    /// set trivially.
     /// </summary>
     public static bool Intersects(
         IReadOnlyCollection<TravellerId> applicableTravellerIds,

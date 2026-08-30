@@ -80,6 +80,15 @@ public sealed class TripTravellerFilterEvaluatorTests
     }
 
     [Fact]
+    public void Everyone_applicable_visible_when_effective_traveller_set_is_empty()
+    {
+        Assert.True(TripTravellerFilterEvaluator.IsVisible(
+            TravellerFilterMode.Me, Array.Empty<TravellerId>(), Array.Empty<TravellerId>()));
+        Assert.True(TripTravellerFilterEvaluator.IsVisible(
+            TravellerFilterMode.Selected, Array.Empty<TravellerId>(), Array.Empty<TravellerId>()));
+    }
+
+    [Fact]
     public void Me_mode_visible_only_when_caller_is_in_the_applicable_list()
     {
         var me = TravellerId.New();

@@ -317,7 +317,7 @@ export function TripItineraryPage() {
               onUnschedule={() => void handleUnschedule(item)}
               onDelete={() => void handleDelete(item)}
               onApplicabilityChange={(ids) => void handleApplicabilityChange(item, ids)}
-              onRenameSelected={() => setSelectedItemId(item.id === selectedItemId ? null : item.id)}
+              onToggleComments={() => setSelectedItemId(item.id === selectedItemId ? null : item.id)}
               selected={selectedItemId === item.id}
               tripId={tripId}
               travellers={travellers ?? []}
@@ -350,7 +350,7 @@ export function TripItineraryPage() {
                   onUnschedule={() => void handleUnschedule(item)}
                   onDelete={() => void handleDelete(item)}
                   onApplicabilityChange={(ids) => void handleApplicabilityChange(item, ids)}
-                  onRenameSelected={() => setSelectedItemId(item.id === selectedItemId ? null : item.id)}
+                  onToggleComments={() => setSelectedItemId(item.id === selectedItemId ? null : item.id)}
                   selected={selectedItemId === item.id}
                   tripId={tripId}
                   travellers={travellers ?? []}
@@ -391,7 +391,7 @@ interface ItineraryItemRowProps {
   onUnschedule: () => void;
   onDelete: () => void;
   onApplicabilityChange: (ids: string[]) => void;
-  onRenameSelected: () => void;
+  onToggleComments: () => void;
   selected: boolean;
   tripId: string;
   travellers: { id: string; displayName: string }[];
@@ -402,7 +402,7 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
   const {
     item, travellerNames, canEdit, canComment, dayByDayEnabled, scheduleDate,
     onScheduleDateChange, onSchedule, onUnschedule, onDelete, onApplicabilityChange,
-    onRenameSelected, selected, tripId, travellers, updateContent
+    onToggleComments, selected, tripId, travellers, updateContent
   } = props;
 
   const { data: comments } = useItineraryComments(tripId, selected ? item.id : undefined);
@@ -508,7 +508,7 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
         </Stack>
       )}
 
-      <Button size="small" onClick={onRenameSelected} data-testid="toggle-comments">
+      <Button size="small" onClick={onToggleComments} data-testid="toggle-comments">
         {selected ? 'Hide comments' : 'Show comments'}
       </Button>
 

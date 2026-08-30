@@ -27,6 +27,11 @@ public static class TripTravellerFilterEvaluator
             return true;
         }
 
+        if (TravellerApplicability.AppliesToEveryone(itemApplicableTravellerIds))
+        {
+            return true;
+        }
+
         // Me/Selected both collapse to "does the item intersect this effective set?". An "empty"
         // effective set happens when Me mode is chosen by a member who isn't linked to any
         // traveller yet - in which case nothing traveller-scoped can possibly apply to them.
