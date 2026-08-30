@@ -113,7 +113,7 @@ test.describe.serial('Journey 5: itinerary + collaborative planning', () => {
     await page.getByTestId('create-idea-submit').click();
 
     const itineraryItem = page.getByTestId(/^itinerary-item-/).filter({ hasText: 'Colosseum tour' });
-    await expect(itineraryItem.getByTestId('itinerary-item-title')).toHaveText('Colosseum tour');
+    await expect(itineraryItem.getByTestId(/^itinerary-item-title-/)).toHaveText('Colosseum tour');
 
     // Schedule onto a confirmed-window date.
     await itineraryItem.getByTestId(/^schedule-date-input-/).fill('2027-05-02');
@@ -132,15 +132,15 @@ test.describe.serial('Journey 5: itinerary + collaborative planning', () => {
     const page = await ctx.newPage();
     await signInAs(page, TEST_IDENTITIES.viewer, { goToAfterSignIn: `/trips/${tripId}/itinerary` });
 
-    await expect(page.getByTestId('itinerary-item-title')).toHaveText('Colosseum tour');
+    await expect(page.getByTestId(/^itinerary-item-title-/)).toHaveText('Colosseum tour');
     await expect(page.getByTestId('create-idea-form')).toHaveCount(0);
     await expect(page.getByTestId(/^schedule-item-/)).toHaveCount(0);
-    await expect(page.getByTestId('delete-item')).toHaveCount(0);
+    await expect(page.getByTestId(/^delete-item-/)).toHaveCount(0);
 
     // Viewer can comment.
-    await page.getByTestId('toggle-comments').first().click();
-    await page.getByTestId('comment-input').fill('Excited!');
-    await page.getByTestId('submit-comment').click();
+    await page.getByTestId(/^toggle-comments-/).first().click();
+    await page.getByTestId(/^comment-input-/).fill('Excited!');
+    await page.getByTestId(/^submit-comment-/).click();
     await expect(page.getByText('Excited!')).toBeVisible();
 
     // Server-side proof: raw POST/DELETE for content mutation returns 403.

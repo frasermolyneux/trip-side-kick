@@ -65,7 +65,7 @@ describe('TripItineraryPage', () => {
     expect(await screen.findByText('Boat trip')).toBeInTheDocument();
     expect(screen.queryByTestId('create-idea-form')).not.toBeInTheDocument();
     expect(screen.queryByTestId(`schedule-item-${idea.id}`)).not.toBeInTheDocument();
-    expect(screen.queryByTestId('delete-item')).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`delete-item-${idea.id}`)).not.toBeInTheDocument();
   });
 
   it('lets an editor create an idea', async () => {
@@ -121,9 +121,9 @@ describe('TripItineraryPage', () => {
     });
 
     await screen.findByText('Boat trip');
-    await userEvent.click(screen.getByTestId('toggle-comments'));
-    await userEvent.type(await screen.findByTestId('comment-input'), 'sounds good');
-    await userEvent.click(screen.getByTestId('submit-comment'));
+    await userEvent.click(screen.getByTestId(`toggle-comments-${idea.id}`));
+    await userEvent.type(await screen.findByTestId(`comment-input-${idea.id}`), 'sounds good');
+    await userEvent.click(screen.getByTestId(`submit-comment-${idea.id}`));
 
     await waitFor(() => expect(commented).toBe(true));
   });

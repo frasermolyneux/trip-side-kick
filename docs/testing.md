@@ -10,9 +10,9 @@ external network at test-run time** — see each section below for exactly how.
 All three tiers were executed for real (Docker became available partway through this slice's
 authoring) and are green as of this branch:
 
-- **Unit tests**: 183/183 passing (`dotnet test --filter "FullyQualifiedName!~IntegrationTests"`).
-- **Integration tests**: 21/21 passing against a real Testcontainers SQL Server 2022 container.
-- **Playwright E2E**: 14 specs (13 baseline + `journey-itinerary.spec.ts`) passing (~40s once the app/DB are up).
+- **Unit tests**: all passing (`dotnet test --filter "FullyQualifiedName!~IntegrationTests"`).
+- **Integration tests**: all passing against a real Testcontainers SQL Server 2022 container.
+- **Playwright E2E**: all specs passing (~40s once the app/DB are up).
 
 ### Bugs found and fixed while getting these tiers green
 

@@ -95,6 +95,30 @@ public sealed class TripTravellerFilterServiceTests
     }
 
     [Fact]
+    public async Task UpdateForCaller_uses_the_created_rows_RowVersion_on_first_write_auto_create()
+    {
+        // No row exists yet, so the caller cannot have a valid expected RowVersion. The service
+        // creates the row and must then update it against the newly persisted RowVersion rather
+        // than the caller's placeholder value (which would fail with a spurious 409).
+        filterRepository
+            .Setup(r => r.GetForTripAndMembershipAsync(tripId, membership.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TripTravellerFilter?)null);
+
+        filterRepository
+            .Setup(r => r.AddAsync(It.IsAny<TripTravellerFilter>(), It.IsAny<CancellationToken>()))
+            .Callback<TripTravellerFilter, CancellationToken>((created, _) => WithRowVersion(created, [7, 7, 7]))
+            .Returns(Task.CompletedTask);
+
+        var updated = await sut.UpdateForCallerAsync(
+            tripId, SubjectId, TravellerFilterMode.Me, null, expectedRowVersion: [1, 2, 3]);
+
+        Assert.Equal(TravellerFilterMode.Me, updated.Mode);
+        filterRepository.Verify(
+            r => r.UpdateAsync(updated, new byte[] { 7, 7, 7 }, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task UpdateForCaller_recovers_when_a_concurrent_first_write_creates_the_row_first()
     {
         // The caller has never read the filter (no row exists from their point of view), so they

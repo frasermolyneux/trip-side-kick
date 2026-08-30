@@ -318,6 +318,7 @@ export function TripItineraryPage() {
               onDelete={() => void handleDelete(item)}
               onApplicabilityChange={(ids) => void handleApplicabilityChange(item, ids)}
               onToggleComments={() => setSelectedItemId(item.id === selectedItemId ? null : item.id)}
+              onError={(message) => setError(message || null)}
               selected={selectedItemId === item.id}
               tripId={tripId}
               travellers={travellers ?? []}
@@ -351,6 +352,7 @@ export function TripItineraryPage() {
                   onDelete={() => void handleDelete(item)}
                   onApplicabilityChange={(ids) => void handleApplicabilityChange(item, ids)}
                   onToggleComments={() => setSelectedItemId(item.id === selectedItemId ? null : item.id)}
+                  onError={(message) => setError(message || null)}
                   selected={selectedItemId === item.id}
                   tripId={tripId}
                   travellers={travellers ?? []}
@@ -392,6 +394,7 @@ interface ItineraryItemRowProps {
   onDelete: () => void;
   onApplicabilityChange: (ids: string[]) => void;
   onToggleComments: () => void;
+  onError: (message: string) => void;
   selected: boolean;
   tripId: string;
   travellers: { id: string; displayName: string }[];
@@ -402,7 +405,7 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
   const {
     item, travellerNames, canEdit, canComment, dayByDayEnabled, scheduleDate,
     onScheduleDateChange, onSchedule, onUnschedule, onDelete, onApplicabilityChange,
-    onToggleComments, selected, tripId, travellers, updateContent
+    onToggleComments, onError, selected, tripId, travellers, updateContent
   } = props;
 
   const { data: comments } = useItineraryComments(tripId, selected ? item.id : undefined);
@@ -413,15 +416,17 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
 
   async function submitComment() {
     if (!commentDraft.trim()) return;
+    onError('');
     try {
       await addComment.mutateAsync({ itemId: item.id, body: { body: commentDraft } });
       setCommentDraft('');
     } catch {
-      // handled by parent-level error state
+      onError('Could not add comment. Please try again.');
     }
   }
 
   async function saveTitle() {
+    onError('');
     try {
       await updateContent.mutateAsync({
         itemId: item.id,
@@ -430,7 +435,7 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
       });
       setEditing(false);
     } catch {
-      // ignore
+      onError('Could not save the title. Someone else may have changed this item - reload and try again.');
     }
   }
 
@@ -452,7 +457,7 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
             <Button size="small" onClick={() => setEditing(false)}>Cancel</Button>
           </>
         ) : (
-          <Typography variant="subtitle1" data-testid="itinerary-item-title">{item.title}</Typography>
+          <Typography variant="subtitle1" data-testid={`itinerary-item-title-${item.id}`}>{item.title}</Typography>
         )}
         <Chip
           size="small"
@@ -466,7 +471,7 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
 
       {canEdit && (
         <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-          <Button size="small" onClick={() => { setTitleDraft(item.title); setEditing(true); }} data-testid="edit-item">
+          <Button size="small" onClick={() => { setTitleDraft(item.title); setEditing(true); }} data-testid={`edit-item-${item.id}`}>
             Edit
           </Button>
           {item.schedule.status === 'unscheduled' && dayByDayEnabled && (
@@ -482,7 +487,7 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
             </>
           )}
           {item.schedule.status === 'scheduled' && (
-            <Button size="small" onClick={onUnschedule} data-testid="unschedule-item">Back to idea</Button>
+            <Button size="small" onClick={onUnschedule} data-testid={`unschedule-item-${item.id}`}>Back to idea</Button>
           )}
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Applies to</InputLabel>
@@ -502,18 +507,18 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
               ))}
             </Select>
           </FormControl>
-          <IconButton size="small" color="error" onClick={onDelete} data-testid="delete-item" aria-label="Delete item">
+          <IconButton size="small" color="error" onClick={onDelete} data-testid={`delete-item-${item.id}`} aria-label="Delete item">
             🗑
           </IconButton>
         </Stack>
       )}
 
-      <Button size="small" onClick={onToggleComments} data-testid="toggle-comments">
+      <Button size="small" onClick={onToggleComments} data-testid={`toggle-comments-${item.id}`}>
         {selected ? 'Hide comments' : 'Show comments'}
       </Button>
 
       {selected && (
-        <Box sx={{ mt: 1 }} data-testid="comments-panel">
+        <Box sx={{ mt: 1 }} data-testid={`comments-panel-${item.id}`}>
           <List dense>
             {(comments ?? []).map((c) => (
               <ListItem key={c.id}>
@@ -535,13 +540,13 @@ function ItineraryItemRow(props: ItineraryItemRowProps) {
                 onChange={(e) => setCommentDraft(e.target.value)}
                 placeholder="Add a comment"
                 fullWidth
-                slotProps={{ htmlInput: { 'data-testid': 'comment-input' } }}
+                slotProps={{ htmlInput: { 'data-testid': `comment-input-${item.id}` } }}
               />
               <Button
                 size="small"
                 variant="contained"
                 onClick={() => void submitComment()}
-                data-testid="submit-comment"
+                data-testid={`submit-comment-${item.id}`}
               >
                 Comment
               </Button>
