@@ -117,6 +117,10 @@ invariants; this section is the persistence mapping only.
 | `Membership` | `Memberships` | `MembershipId` (UUIDv7), FK `TripId`, `SubjectId` (the Entra `oid` — **never email**), `MembershipRole` enum column, `RowVersion`. Unique index on `(TripId, SubjectId)` — one membership per trip per identity |
 | `Traveller` | `Travellers` | `TravellerId` (UUIDv7), FK `TripId`, `DisplayName`, nullable `LinkedMembershipId` FK (self-contained: a traveller may or may not be linked to an account) |
 | `Invitation` | `Invitations` | `InvitationId` (UUIDv7), FK `TripId`, invited email (normalized, **bound** — see below), `MembershipRole` to grant on accept, `InvitationStatus` enum (`Pending`/`Accepted`/`Revoked`), nullable `LinkedTravellerId`, a random, non-guessable acceptance token (used to build the stubbed acceptance link — see [Invitation notifications](#invitation-notifications-the-iinvitationnotifier-stub)), `RowVersion` |
+| `ItineraryItem` (Slice 5) | `ItineraryItems` | `ItineraryItemId` (UUIDv7), FK `TripId`, `Title`, nullable `Notes`/`Location`, an `ItinerarySchedule` complex property (`ScheduleStatus` enum + nullable `ScheduledDate`/`ScheduledStartTime`/`ScheduledEndTime`), `ApplicableTravellerIds` as a JSON list column (empty = everyone — see `docs/itinerary-and-travellers.md`), `RowVersion` |
+| `ItineraryComment` (Slice 5) | `ItineraryComments` | Append-only. `ItineraryCommentId` (UUIDv7), FK `TripId`, FK `ItineraryItemId`, `AuthorSubjectId` (Entra `oid`), `Body`, `CreatedAt` (`Instant`). No `RowVersion` |
+| `TripActivityFeedEntry` (Slice 5) | `TripActivityFeedEntries` | Append-only. `TripActivityFeedEntryId` (UUIDv7), FK `TripId`, `ActorSubjectId`, `EventType` enum, `Summary` (trip content, never PII — see [logging rules](#pii-rules)), `OccurredAt` (`Instant`), nullable FK `ItineraryItemId`. Written inside the same `IUnitOfWork.ExecuteAsync` transaction as the underlying mutation |
+| `TripTravellerFilter` (Slice 5) | `TripTravellerFilters` | Per-member persisted filter preference. `TripTravellerFilterId` (UUIDv7), FK `TripId`, FK `MembershipId`, `Mode` enum (`Everyone`/`Me`/`Selected`), `SelectedTravellerIds` as a JSON list, `RowVersion`. Unique index on `(TripId, MembershipId)` |
 
 All dates are NodaTime (`LocalDate`/`Instant` as applicable) via the custom `NodaTimeConversions`
 value converters — no `DateTime`/`DateTimeOffset` anywhere in the domain or EF mapping. Money
@@ -124,9 +128,11 @@ value converters — no `DateTime`/`DateTimeOffset` anywhere in the domain or EF
 conversion yet — see the trip-creation journey below); the existing `Common/Money.cs` value object
 (decimal + ISO 4217) remains the pattern for the future slice that adds actual costs.
 
-The single migration `20260804144332_InitialTripsMembership` creates all four tables; see
-`src/MX.TripSideKick.Infrastructure/Persistence/Migrations/` for the generated `Up`/`Down` and the
-model snapshot.
+The single migration `20260804144332_InitialTripsMembership` creates the first four tables; the
+Slice 5 migration `20260806193446_AddItineraryAndTravellerFilter` adds
+`ItineraryItems`, `ItineraryComments`, `TripActivityFeedEntries`, and `TripTravellerFilters`
+(with the unique `(TripId, MembershipId)` index on filters). Both are applied by the same
+CI-as-admin step described above.
 
 ## Domain and application model summary
 

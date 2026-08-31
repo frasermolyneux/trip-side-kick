@@ -31,6 +31,7 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetailsSer
             ConcurrencyConflictException => StatusCodes.Status409Conflict,
             AlreadyMemberException => StatusCodes.Status409Conflict,
             LastOwnerViolationException => StatusCodes.Status409Conflict,
+            SchedulingNotSupportedException => StatusCodes.Status409Conflict,
             InvitationStateException => StatusCodes.Status409Conflict,
             ArgumentException => StatusCodes.Status400BadRequest,
             _ => 0

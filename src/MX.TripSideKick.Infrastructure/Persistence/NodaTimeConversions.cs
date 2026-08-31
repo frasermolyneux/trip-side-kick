@@ -22,4 +22,13 @@ internal static class NodaTimeConversions
         new(
             instant => instant.HasValue ? instant.Value.ToDateTimeUtc() : null,
             dateTime => dateTime.HasValue ? Instant.FromDateTimeUtc(DateTime.SpecifyKind(dateTime.Value, DateTimeKind.Utc)) : null);
+
+    public static readonly ValueConverter<LocalTime, TimeOnly> LocalTimeConverter =
+        new(time => new TimeOnly(time.Hour, time.Minute, time.Second, time.Millisecond),
+            time => new LocalTime(time.Hour, time.Minute, time.Second, time.Millisecond));
+
+    public static readonly ValueConverter<LocalTime?, TimeOnly?> NullableLocalTimeConverter =
+        new(
+            time => time.HasValue ? new TimeOnly(time.Value.Hour, time.Value.Minute, time.Value.Second, time.Value.Millisecond) : null,
+            time => time.HasValue ? new LocalTime(time.Value.Hour, time.Value.Minute, time.Value.Second, time.Value.Millisecond) : null);
 }
