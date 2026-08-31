@@ -15,13 +15,13 @@ All .NET commands run from the repository root unless stated otherwise.
 
 ```bash
 # Restore + build the whole solution (warnings are errors)
-dotnet build src/MX.TripSideKick.sln
+dotnet build src/MX.TripSideKick.slnx
 
 # Run every test
-dotnet test src/MX.TripSideKick.sln
+dotnet test src/MX.TripSideKick.slnx
 
 # Run a single test class
-dotnet test src/MX.TripSideKick.sln --filter "FullyQualifiedName~HostRoutingTests"
+dotnet test src/MX.TripSideKick.slnx --filter "FullyQualifiedName~HostRoutingTests"
 
 # Formatting gate (must be clean; CI runs the same command)
 cd src && dotnet format "." --verify-no-changes

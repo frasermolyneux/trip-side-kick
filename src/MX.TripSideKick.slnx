@@ -1,0 +1,12 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="MX.TripSideKick.Application/MX.TripSideKick.Application.csproj" />
+  <Project Path="MX.TripSideKick.Domain/MX.TripSideKick.Domain.csproj" />
+  <Project Path="MX.TripSideKick.Infrastructure/MX.TripSideKick.Infrastructure.csproj" />
+  <Project Path="MX.TripSideKick.Web.Tests/MX.TripSideKick.Web.Tests.csproj" />
+  <Project Path="MX.TripSideKick.Web/MX.TripSideKick.Web.csproj" />
+</Solution>

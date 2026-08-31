@@ -21,7 +21,7 @@ The same deployed app serves two hostnames and refuses to blur them.
 
 ## Project layout and boundaries
 
-`src/MX.TripSideKick.sln` — dependencies point inwards only, no MediatR/CQRS.
+`src/MX.TripSideKick.slnx` — dependencies point inwards only, no MediatR/CQRS.
 
 * `MX.TripSideKick.Domain` — aggregates/value objects. Noda Time dates, `decimal` + ISO 4217 money (`Common/Money.cs`), UUIDv7 ids (`Trips/TripId.cs`), `rowversion` concurrency.
 * `MX.TripSideKick.Application` — feature-oriented services (`Trips/TripCatalogService.cs`) and the interfaces they need (`Trips/ITripRepository.cs`, `Abstractions/ICurrentUser.cs`).

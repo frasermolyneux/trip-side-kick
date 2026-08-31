@@ -7,7 +7,7 @@
       "command": "dotnet",
       "args": [
         "clean",
-        "${workspaceFolder}/src/MX.TripSideKick.sln"
+        "${workspaceFolder}/src/MX.TripSideKick.slnx"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -17,7 +17,7 @@
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/src/MX.TripSideKick.sln"
+        "${workspaceFolder}/src/MX.TripSideKick.slnx"
       ],
       "group": {
         "kind": "build",
@@ -31,7 +31,7 @@
       "command": "dotnet",
       "args": [
         "test",
-        "${workspaceFolder}/src/MX.TripSideKick.sln",
+        "${workspaceFolder}/src/MX.TripSideKick.slnx",
         "--filter",
         "FullyQualifiedName!~IntegrationTests"
       ],
@@ -58,7 +58,7 @@
       "command": "dotnet",
       "args": [
         "restore",
-        "${workspaceFolder}/src/MX.TripSideKick.sln"
+        "${workspaceFolder}/src/MX.TripSideKick.slnx"
       ],
       "problemMatcher": []
     },

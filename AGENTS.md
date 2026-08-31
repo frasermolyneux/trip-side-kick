@@ -8,10 +8,10 @@ Execution brief for coding agents. See `.github/copilot-instructions.md` for arc
 
 ```bash
 # .NET (repo root) — warnings are errors
-dotnet build src/MX.TripSideKick.sln
-dotnet test  src/MX.TripSideKick.sln
-dotnet test  src/MX.TripSideKick.sln --filter "FullyQualifiedName~HostRoutingTests"   # single class
-dotnet test  src/MX.TripSideKick.sln --filter "FullyQualifiedName!~IntegrationTests"  # CI's filter
+dotnet build src/MX.TripSideKick.slnx
+dotnet test  src/MX.TripSideKick.slnx
+dotnet test  src/MX.TripSideKick.slnx --filter "FullyQualifiedName~HostRoutingTests"   # single class
+dotnet test  src/MX.TripSideKick.slnx --filter "FullyQualifiedName!~IntegrationTests"  # CI's filter
 
 # Format gate — run from src/, exactly as CI does
 cd src && dotnet format "." --verify-no-changes
