@@ -403,8 +403,9 @@ FodyWeavers.xsd
 *.tfstate.*
 *.tfplan
 *.tfvars.backup
-# .terraform.lock.hcl is intentionally committed so CI resolves the exact provider builds and
-# checksums that were validated locally.
+# Provider version/hash lock is not committed; provider version constraints in providers.tf /
+# variables.tf are the tracked boundary and CI resolves providers fresh on each run.
+**/.terraform.lock.hcl
 crash.log
 override.tf
 override.tf.json
