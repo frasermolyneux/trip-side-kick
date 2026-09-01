@@ -1,5 +1,5 @@
 {
-  "dotnet.defaultSolution": "src/MX.TripSideKick.sln",
+  "dotnet.defaultSolution": "src/MX.TripSideKick.slnx",
   "files.eol": "\n",
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,

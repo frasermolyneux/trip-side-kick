@@ -35,7 +35,7 @@ export const SQL_SA_PASSWORD = 'E2E-Test-Only-Passw0rd!';
 export const REPO_ROOT = new URL('../../../', import.meta.url);
 export const WEB_PROJECT_DIR = new URL('src/MX.TripSideKick.Web/', REPO_ROOT);
 export const INFRASTRUCTURE_PROJECT_DIR = new URL('src/MX.TripSideKick.Infrastructure/', REPO_ROOT);
-export const SOLUTION_PATH = new URL('src/MX.TripSideKick.sln', REPO_ROOT);
+export const SOLUTION_PATH = new URL('src/MX.TripSideKick.slnx', REPO_ROOT);
 
 /**
  * Environment variable a developer/CI job can set to point at an already-published

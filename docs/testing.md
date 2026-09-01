@@ -90,7 +90,7 @@ Covers:
 Run:
 
 ```bash
-dotnet test src/MX.TripSideKick.sln --filter "FullyQualifiedName!~IntegrationTests"
+dotnet test src/MX.TripSideKick.slnx --filter "FullyQualifiedName!~IntegrationTests"
 ```
 
 (This is also exactly what `build-and-test`/`pr-verify` CI runs — see
@@ -127,7 +127,7 @@ Covers, against a real SQL Server:
 Run (requires Docker):
 
 ```bash
-dotnet test src/MX.TripSideKick.sln --filter "FullyQualifiedName~IntegrationTests"
+dotnet test src/MX.TripSideKick.slnx --filter "FullyQualifiedName~IntegrationTests"
 ```
 
 ## 3. Playwright role-based E2E suite
