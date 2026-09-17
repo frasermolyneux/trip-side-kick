@@ -15,6 +15,14 @@ updates:
       all-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
     ignore:
       # MX.Observability.ApplicationInsights.AspNetCore pins the 2.x Application Insights SDK.
       - dependency-name: "Microsoft.ApplicationInsights*"
@@ -34,6 +42,14 @@ updates:
       all-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
 
   - package-ecosystem: "terraform"
     assignees: ["frasermolyneux"]
@@ -47,6 +63,14 @@ updates:
       all-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
 
   - package-ecosystem: "github-actions"
     assignees: ["frasermolyneux"]
@@ -60,3 +84,11 @@ updates:
       all-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
