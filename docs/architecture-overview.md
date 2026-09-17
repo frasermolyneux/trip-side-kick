@@ -2,9 +2,10 @@
 
 ## Runtime topology
 
-One Azure App Service (Linux, .NET 10) per environment serves **both** public surfaces. The shared
-`platform-hosting` App Service plan is consumed via Terraform remote state — this workload never
-creates a plan of its own.
+One Azure App Service (Linux, .NET 10) per environment serves **both** public surfaces. Development
+owns an ephemeral Linux B1 plan in its workload resource group and has no `platform-hosting`
+remote-state dependency. Production continues to consume the shared `platform-hosting` App Service
+plan via Terraform remote state.
 
 ```
                     Cloudflare DNS (DNS-only)

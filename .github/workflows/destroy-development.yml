@@ -17,6 +17,7 @@ jobs:
 
     concurrency: # Prevents concurrent GitHub Actions runs against stateful resources
       group: ${{ github.repository }}-dev
+      cancel-in-progress: false
 
     env:
       TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_KEY }}
@@ -30,3 +31,15 @@ jobs:
           AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - if: always()
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Development resources were removed
+        if: always()
+        shell: bash
+        run: bash terraform/scripts/verify-development-destroy.sh

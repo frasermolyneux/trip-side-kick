@@ -42,7 +42,7 @@ Each layer has its own `*ServiceCollectionExtensions.cs`; `Program.cs` calls the
 
 ## Infrastructure facts
 
-* `terraform/` consumes remote state from `platform-hosting` (shared Linux App Service plan — **never create a plan**) and `platform-monitoring` (shared Log Analytics workspace). Environments: `dev`, `prd`. Region: `swedencentral`.
+* `terraform/` creates a dev-only Linux B1 App Service plan and consumes `platform-hosting` remote state only for Production's shared plan. Both environments consume `platform-monitoring` for the shared Log Analytics workspace. Environments: `dev`, `prd`. Region: `swedencentral`.
 * **DNS is Cloudflare, not Azure DNS.** No Azure DNS zone, no `DNS Zone Contributor`. `cloudflare_dns_record` resources with zone IDs from the `cloudflare_zone` data source; the token arrives as `TF_VAR_cloudflare_api_token` from the `CLOUDFLARE_API_KEY` environment secret. All records are **DNS-only (grey cloud)** — App Service managed certificates cannot validate or renew through the proxy. See `docs/dns-and-custom-domains.md`.
 * SQL is `GP_S_Gen5_1` serverless with 60-minute auto-pause, Entra-only auth, no SQL logins. Storage has shared keys disabled and public blob access off. Everything runtime-side uses the system-assigned managed identity.
 * No secrets in app settings, ever.
