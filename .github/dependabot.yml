@@ -29,6 +29,9 @@ updates:
         versions: [">=3.0.0"]
       - dependency-name: "Nerdbank.GitVersioning"
         versions: [">=3.10.0"]
+      # Microsoft.AspNetCore.OpenApi 10.x requires Microsoft.OpenApi < 3.
+      - dependency-name: "Microsoft.OpenApi"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     assignees: ["frasermolyneux"]
@@ -50,6 +53,10 @@ updates:
           - "*"
         update-types:
           - "major"
+    ignore:
+      # openapi-typescript 7.x requires TypeScript 5.x.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "terraform"
     assignees: ["frasermolyneux"]
