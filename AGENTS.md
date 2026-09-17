@@ -36,7 +36,9 @@ Run only the block(s) your change touches. LF endings only (`.gitattributes` / `
 - ❌ Change resource naming/tagging conventions.
 - ❌ Assume tools/SDKs beyond what `copilot-setup-steps.yml` provisions.
 - ❌ Add an Azure DNS zone or `DNS Zone Contributor` role — DNS is **Cloudflare**, not Azure.
-- ❌ Create an App Service plan or Log Analytics workspace — both come from platform remote state.
+- ❌ Create another App Service plan or a Log Analytics workspace — Development owns the single B1
+  plan declared in `terraform/service_plan.tf`; Production hosting and both environments' monitoring
+  come from platform remote state.
 - ❌ Implement auth opportunistically — identity needs Graph permissions this workload lacks; keep `IDENTITY STUB` / `TODO (identity slice)` markers unless that's the assigned task.
 - ❌ Add MediatR/CQRS or a separate API/SPA deployment — one App Service, two host surfaces.
 - ❌ Add `/health` or `/healthz` aliases — exactly `/api/health/live` and `/api/health/ready`.

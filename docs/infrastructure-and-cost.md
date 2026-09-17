@@ -9,16 +9,20 @@ in **swedencentral**.
 | State | Provides |
 | --- | --- |
 | `platform-workloads` | Resource groups, Terraform backends and the workload service principal (consumed indirectly — the RG is looked up by name) |
-| `platform-hosting` | The shared Linux App Service plan (`app_service_plans["default"]`) and hosting resource group |
+| `platform-hosting` | Production only: the shared Linux App Service plan (`app_service_plans["default"]`) and hosting resource group |
 | `platform-monitoring` | The shared Log Analytics workspace (`log_analytics.id`) |
 
-This workload **never creates an App Service plan or a Log Analytics workspace.**
+Development has no `platform-hosting` remote-state dependency. It owns a Linux B1 plan named
+`asp-trip-side-kick-dev-swedencentral-default` in `rg-trip-side-kick-dev-swedencentral`, so the
+nightly Development destroy removes both the app and its compute. Production continues to use the
+shared plan. This workload never creates a Log Analytics workspace.
 
 ## Resources created per environment
 
 | Resource | Name pattern | Notes |
 | --- | --- | --- |
-| Linux Web App | `app-trip-side-kick-<env>-swedencentral-<id>` | On the shared plan, .NET 10, system-assigned identity, `https_only`, TLS 1.2 min, health check `/api/health/live`, `WEBSITE_RUN_FROM_PACKAGE = 1` (seeded here, then owned by the deployment workflow via `lifecycle.ignore_changes`) |
+| Linux App Service plan | Development: `asp-trip-side-kick-dev-swedencentral-default` | Dev-only Linux B1 plan in the workload resource group. Production uses the existing shared plan. |
+| Linux Web App | `app-trip-side-kick-<env>-swedencentral-<id>` | On the environment's plan, .NET 10, system-assigned identity, `https_only`, TLS 1.2 min, health check `/api/health/live`, `WEBSITE_RUN_FROM_PACKAGE = 1` (seeded here, then owned by the deployment workflow via `lifecycle.ignore_changes`) |
 | Custom hostname bindings + managed certificates | per `custom_domains` entry | Free App Service managed certificates |
 | Cloudflare DNS records | `<host>` CNAME + `asuid.<host>` TXT | See [DNS and Custom Domains](dns-and-custom-domains.md) |
 | Application Insights | `ai-trip-side-kick-<env>-swedencentral` | Workspace-based, pointed at the shared `platform-monitoring` workspace |
@@ -52,15 +56,17 @@ Why serverless rather than Basic DTU:
 | Storage account (LRS, low volume) | <£1 | <£1 |
 | Key Vault (RBAC, few operations) | <£1 | <£1 |
 | Application Insights (ingestion) | <£1 at skeleton volumes | £1–5 |
-| App Service | £0 — shared `platform-hosting` B2 plan, already paid for | £0 |
+| App Service | Linux B1 while Development exists | £0 — shared `platform-hosting` plan, already paid for |
 | Managed certificates, Cloudflare DNS | £0 | £0 |
-| **Total** | **~£5–15/month** | **~£15–45/month** |
+| **Total** | **~£5–25/month, depending on how often the environment exists** | **~£15–45/month** |
 
 > ⚠️ **Cost flag.** These are estimates, not a quote — serverless SQL is billed per vCore-second and
 > the range is dominated by how long the database stays un-paused. Validate against Azure Cost
 > Management after the first full billing week. `destroy-development.yml` runs nightly at 23:55 UTC
 > specifically to keep the Development bill near zero; the Development environment is expected to be
-> ephemeral.
+> ephemeral. After Terraform destroy, the workflow removes only the known Application Insights
+> `Failure Anomalies - ai-trip-side-kick-dev-swedencentral` smart-detector residue and fails with
+> residual Azure resource IDs if the workload resource group is not empty or the B1 plan still exists.
 >
 > If the Development bill is still uncomfortable, the cheapest alternative is `Basic` (2 GB, ~£4/month
 > flat) — change `sql_database.sku_name` in `terraform/tfvars/dev.tfvars`; `locals.is_serverless_sql`

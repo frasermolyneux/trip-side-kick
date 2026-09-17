@@ -8,6 +8,11 @@ variable "environment" {
   description = "Environment short name (dev or prd)."
   type        = string
   default     = "dev"
+
+  validation {
+    condition     = contains(["dev", "prd"], var.environment)
+    error_message = "environment must be either \"dev\" or \"prd\"."
+  }
 }
 
 variable "location" {
@@ -34,7 +39,7 @@ variable "platform_monitoring_state" {
 }
 
 variable "platform_hosting_state" {
-  description = "Backend config for platform-hosting remote state (shared Linux App Service plan)."
+  description = "Backend config for platform-hosting remote state (shared production Linux App Service plan). Required only for prd."
   type = object({
     resource_group_name  = string
     storage_account_name = string
@@ -44,6 +49,13 @@ variable "platform_hosting_state" {
     tenant_id            = string
     use_oidc             = bool
   })
+  default  = null
+  nullable = true
+
+  validation {
+    condition     = var.environment != "prd" || var.platform_hosting_state != null
+    error_message = "platform_hosting_state must be configured for prd."
+  }
 }
 
 variable "cloudflare_api_token" {

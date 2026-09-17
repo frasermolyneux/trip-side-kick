@@ -24,8 +24,9 @@ Trip Side Kick is a travel itinerary planner: one place for flights, stays, book
 plans that you can share with the people you are travelling with. It is an ASP.NET Core (.NET 10)
 modular monolith that serves two surfaces from a single App Service deployment — a Razor Pages
 brochure site on `tripsidekick.net` and a React + TypeScript progressive web app plus versioned
-`/v1` API on `tripsidekick.app`. Azure infrastructure is provisioned with Terraform onto the shared
-`platform-hosting` App Service plan, with DNS in Cloudflare.
+`/v1` API on `tripsidekick.app`. Azure infrastructure is provisioned with Terraform; Development
+owns an ephemeral Linux B1 App Service plan while Production uses the shared `platform-hosting`
+plan, with DNS in Cloudflare.
 
 ## Contributing
 
