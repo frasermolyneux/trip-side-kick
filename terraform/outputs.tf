@@ -14,6 +14,14 @@ output "web_app_default_hostname" {
   value = azurerm_linux_web_app.app.default_hostname
 }
 
+output "service_plan_name" {
+  value = var.environment == "prd" ? basename(local.production_app_service_plan.id) : azurerm_service_plan.dev[0].name
+}
+
+output "service_plan_id" {
+  value = local.web_app_service_plan_id
+}
+
 output "site_hostnames" {
   description = "Hostnames serving the Razor Pages brochure surface."
   value       = [for domain in local.primary_domains : domain.hostname if domain.surface == "site"]
@@ -67,4 +75,3 @@ output "identity_app_object_id" {
 output "identity_tenant_id" {
   value = data.azuread_client_config.current.tenant_id
 }
-

@@ -102,8 +102,8 @@ A real `plan`/`apply` needs Azure OIDC credentials and the Cloudflare token, so 
 | `dependabot-automerge.yml` | pull request | `dependabot-policy` required check; auto-merges compliant Dependabot PRs |
 | `deploy-dev.yml` | manual | Full build → Terraform apply → App Service deploy to Development |
 | `deploy-prd.yml` | push to `main`, manual, Thursday 05:00 UTC | Development then Production apply + deploy |
-| `destroy-development.yml` | daily 23:55 UTC, manual | Tears the Development environment down overnight to control cost |
-| `destroy-environment.yml` | manual | Targeted teardown of `dev` or `prd` |
+| `destroy-development.yml` | daily 23:55 UTC, manual | Tears the Development environment down overnight, including its B1 plan, then verifies the workload resource group is empty |
+| `destroy-environment.yml` | manual | Targeted teardown of `dev` or `prd`; the dev path performs the same post-destroy inventory verification |
 
 ### PR labels
 
@@ -114,7 +114,11 @@ A real `plan`/`apply` needs Azure OIDC credentials and the Cloudflare token, so 
 | `run-prd-plan` | Terraform **plan** against Production |
 
 `destroy-development.yml` runs nightly, so a Development environment created by a `deploy-dev` label
-is expected to disappear overnight. Re-apply the label (or re-run `deploy-dev.yml`) to bring it back.
+is expected to disappear overnight. Development owns its Linux B1 plan and has no
+`platform-hosting` remote-state dependency; Production remains on the shared production plan.
+The destroy workflows remove the exact Application Insights `Failure Anomalies` smart-detector
+residue, then fail and print residual Azure resource IDs if the Development resource group is not
+empty or the plan still exists. Re-apply the label (or re-run `deploy-dev.yml`) to bring it back.
 
 ## Conventions worth knowing
 

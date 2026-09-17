@@ -1,8 +1,11 @@
 locals {
   resource_group_name = "rg-${var.workload}-${var.environment}-${var.location}"
 
-  platform_hosting_app_service_plan = data.terraform_remote_state.platform_hosting.outputs.app_service_plans["default"]
-  platform_monitoring_workspace_id  = data.terraform_remote_state.platform_monitoring.outputs.log_analytics.id
+  production_app_service_plan      = var.environment == "prd" ? data.terraform_remote_state.platform_hosting["prd"].outputs.app_service_plans["default"] : null
+  platform_monitoring_workspace_id = data.terraform_remote_state.platform_monitoring.outputs.log_analytics.id
+  web_app_resource_group_name      = var.environment == "prd" ? local.production_app_service_plan.resource_group_name : data.azurerm_resource_group.rg.name
+  web_app_location                 = var.environment == "prd" ? local.production_app_service_plan.location : var.location
+  web_app_service_plan_id          = var.environment == "prd" ? local.production_app_service_plan.id : azurerm_service_plan.dev[0].id
 
   web_app_name      = "app-${var.workload}-${var.environment}-${var.location}-${random_id.environment_id.hex}"
   key_vault_name    = "kv-${random_id.environment_id.hex}"
