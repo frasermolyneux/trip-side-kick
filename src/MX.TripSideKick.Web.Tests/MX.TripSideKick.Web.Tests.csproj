@@ -15,7 +15,7 @@
     <!-- Transitive SSH.NET <= 2025.1.0 (via Testcontainers) carries GHSA-q939-rpr3-3284; pin to the patched build. -->
     <PackageReference Include="SSH.NET" Version="2026.0.0" />
     <PackageReference Include="Testcontainers.MsSql" Version="4.15.0" />
-    <PackageReference Include="coverlet.collector" Version="10.0.1">
+    <PackageReference Include="coverlet.collector" Version="10.1.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
