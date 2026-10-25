@@ -405,7 +405,6 @@ FodyWeavers.xsd
 *.tfvars.backup
 # Provider version/hash lock is not committed; provider version constraints in providers.tf /
 # variables.tf are the tracked boundary and CI resolves providers fresh on each run.
-**/.terraform.lock.hcl
 crash.log
 override.tf
 override.tf.json
