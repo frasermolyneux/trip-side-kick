@@ -82,7 +82,7 @@ no SQL connection string and no blob endpoint.
 ```bash
 cd terraform
 terraform fmt -check -recursive
-terraform init -backend=false
+terraform init -lockfile=readonly -backend=false
 terraform validate
 ```
 

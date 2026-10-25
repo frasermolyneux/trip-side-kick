@@ -21,7 +21,7 @@ npm ci && npm run build && npm run test
 
 # Terraform (terraform/) — offline validation only; plan/apply needs CI credentials
 terraform fmt -check -recursive
-terraform init -backend=false
+terraform init -lockfile=readonly -backend=false
 terraform validate
 
 # Local run

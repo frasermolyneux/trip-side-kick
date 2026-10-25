@@ -48,3 +48,7 @@ Each layer has its own `*ServiceCollectionExtensions.cs`; `Program.cs` calls the
 * No secrets in app settings, ever.
 
 See `AGENTS.md` for the canonical build/test/format/terraform/run commands. CI required checks on `main`: `dependabot-policy`, `SonarCloud Code Analysis`, `build-and-test`, `quality / Code Quality`, `devops-secure-scanning / DevOps Secure Scanning`. PR label `deploy-dev` plans+applies+deploys to Development; `run-prd-plan` plans Production.
+
+## Terraform toolchain
+
+Commit each root's `.terraform-version` and `.terraform.lock.hcl`. Select the exact root CLI pin before invoking Terraform; normal initialization uses `-lockfile=readonly`. Regenerate provider selections only in a reviewed dependency-update PR; never commit state, plans, or `.terraform/`.
