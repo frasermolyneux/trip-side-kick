@@ -62,11 +62,16 @@ public sealed class EfUnitOfWork(TripSideKickDbContext dbContext) : IUnitOfWork
                 ? await dbContext.Database.BeginTransactionAsync(level, cancellationToken).ConfigureAwait(false)
                 : await dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
-            var result = await operation(cancellationToken).ConfigureAwait(false);
-
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-
-            return result;
+            try
+            {
+                var result = await operation(cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                return result;
+            }
+            catch (Exception exception) when (SqlExceptionHelpers.IsTransactionConflict(exception))
+            {
+                throw new ConcurrencyConflictException("The transaction conflicted with another update. Reload and retry.");
+            }
         }).ConfigureAwait(false);
     }
 }

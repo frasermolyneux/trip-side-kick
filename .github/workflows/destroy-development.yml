@@ -2,8 +2,6 @@ name: Destroy Development
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "55 23 * * *"
 
 permissions: {}
 

@@ -37,5 +37,13 @@ public class TripSideKickDbContext(DbContextOptions<TripSideKickDbContext> optio
 
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TripSideKickDbContext).Assembly);
+        foreach (var entity in modelBuilder.Model.GetEntityTypes())
+        {
+            var version = entity.FindProperty("RowVersion");
+            if (version is not null)
+            {
+                version.SetDefaultValueSql("uuid_send(gen_random_uuid())");
+            }
+        }
     }
 }

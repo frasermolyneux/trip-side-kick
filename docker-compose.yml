@@ -1,45 +1,19 @@
-# Local backing services for development only. Neither is required by the walking skeleton — the app
-# starts and reports healthy with no SQL connection string and no blob endpoint configured.
-#
-#   docker compose up -d
-#   docker compose down -v
-#
-# The SA password below is a throwaway local development credential. It is never used outside this
-# file; every deployed environment authenticates with Microsoft Entra ID and managed identity.
-
+# Local disposable database only; production is generated from workload.json.
 services:
-  sql:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: tripsidekick-sql
+  postgres:
+    image: postgres:18-bookworm
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "LocalDev!Passw0rd"
-      MSSQL_PID: Developer
+      POSTGRES_USER: tripsidekick
+      POSTGRES_DB: tripsidekick
+      POSTGRES_PASSWORD: local-development-only
     ports:
-      - "1433:1433"
+      - "127.0.0.1:5432:5432"
     volumes:
-      - sql-data:/var/opt/mssql
+      - postgres-data:/var/lib/postgresql
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"
-        ]
-      interval: 10s
+      test: ["CMD", "pg_isready", "-U", "tripsidekick", "-d", "tripsidekick"]
+      interval: 5s
       timeout: 5s
       retries: 12
-      start_period: 30s
-
-  azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:latest
-    container_name: tripsidekick-azurite
-    command: "azurite --blobHost 0.0.0.0 --blobPort 10000 --queueHost 0.0.0.0 --queuePort 10001 --location /data"
-    ports:
-      - "10000:10000"
-      - "10001:10001"
-    volumes:
-      - azurite-data:/data
-
 volumes:
-  sql-data:
-  azurite-data:
+  postgres-data:

@@ -1,0 +1,60 @@
+name: PostgreSQL and Containers
+on:
+  workflow_call:
+permissions: {}
+jobs:
+  postgres-and-containers:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_USER: tripsidekick
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: tripsidekick
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tripsidekick -d tripsidekick"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      TRIPSIDEKICK_TEST_POSTGRES: Host=127.0.0.1;Database=tripsidekick;Username=tripsidekick;Password=ci-disposable-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+      - name: Immutable publication failure handling
+        run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
+      - name: Real PostgreSQL persistence and BFF integration tests
+        run: dotnet test src/MX.TripSideKick.slnx --filter FullyQualifiedName~IntegrationTests
+      - name: Check migration model consistency
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --project src/MX.TripSideKick.Infrastructure --startup-project src/MX.TripSideKick.Web --no-build
+      - name: Browser journeys with isolated PostgreSQL
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          dotnet dev-certs https
+          npm run test:e2e
+      - name: Build constrained application and PostgreSQL images
+        run: |
+          python3 deployment/build_web_image.py --tag tripsidekick-web:ci
+          docker build --file deployment/postgres.Dockerfile --tag tripsidekick-postgres:ci .
+          python3 deployment/test_containers.py
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-postgres-${{ github.run_id }}
+          path: tests/e2e/playwright-report/
+          if-no-files-found: ignore

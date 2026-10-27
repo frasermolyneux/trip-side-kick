@@ -441,3 +441,8 @@ tests/e2e/blob-report/
 tests/e2e/.app-publish/
 tests/e2e/support/.app-publish/
 tests/e2e/node_modules/
+.container-test/
+.local-state/
+promotion/
+.platform-contract/
+.validation-venv/

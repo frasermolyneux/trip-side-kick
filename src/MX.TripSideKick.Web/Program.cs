@@ -1,15 +1,14 @@
 using System.Threading.RateLimiting;
 
-using Azure.Identity;
-
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.Repositories;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.HttpOverrides;
 
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Identity.Web;
@@ -19,7 +18,7 @@ using MX.Observability.ApplicationInsights.AspNetCore;
 using MX.TripSideKick.Application;
 using MX.TripSideKick.Application.Abstractions;
 using MX.TripSideKick.Infrastructure;
-using MX.TripSideKick.Infrastructure.Options;
+using MX.TripSideKick.Infrastructure.Persistence;
 using MX.TripSideKick.Web;
 using MX.TripSideKick.Web.ExceptionHandling;
 using MX.TripSideKick.Web.Hosting;
@@ -27,6 +26,13 @@ using MX.TripSideKick.Web.OpenApi;
 using MX.TripSideKick.Web.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+RuntimeConfiguration.Load(builder);
+if (args.Contains("--healthcheck", StringComparer.Ordinal) || args.Contains("--readiness", StringComparer.Ordinal))
+{
+    Environment.ExitCode = await RuntimeConfiguration.ProbeAsync(builder.Configuration,
+        args.Contains("--readiness", StringComparer.Ordinal)).ConfigureAwait(false);
+    return;
+}
 
 // --- Observability ---------------------------------------------------------------------------
 // Server telemetry flows to the workload's Application Insights resource, which is attached to the
@@ -49,10 +55,8 @@ builder.Services.AddTripSideKickApplication();
 builder.Services.AddTripSideKickInfrastructure(builder.Configuration);
 
 // Entra External ID (B2B collaboration + self-service sign-up) sign-in for the app surface only.
-// Microsoft.Identity.Web authenticates the confidential client with a signed assertion from the
-// App Service's system-assigned managed identity (AzureAd:ClientCredentials:0:SourceType =
-// SignedAssertionFromManagedIdentity) - no client secret, no certificate. Tokens are redeemed and
-// held server-side; the browser only ever receives the session cookie below.
+// RuntimeConfiguration supplies the existing registration's explicit client certificate.
+// Tokens are redeemed and held server-side; the browser receives only the session cookie.
 // A synthetic scheme name for the policy scheme below - never used to authenticate a request
 // directly, only as the DefaultChallengeScheme's forwarding target selector.
 const string ApiChallengeScheme = "TripSideKick.ApiChallenge";
@@ -178,14 +182,6 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
-// App Service terminates TLS in front of the app.
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-});
-
 ConfigureDataProtection(builder);
 
 builder.Services.AddRateLimiter(options =>
@@ -204,6 +200,16 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+if (args.Contains("--initialize-database", StringComparer.Ordinal)
+    || app.Configuration.GetValue<bool>("Sql:InitializeOnStartup"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await DatabaseInitializer.InitializeAsync(scope.ServiceProvider.GetRequiredService<TripSideKickDbContext>()).ConfigureAwait(false);
+    if (args.Contains("--initialize-database", StringComparer.Ordinal))
+    {
+        return;
+    }
+}
 
 // Must run first: App Service terminates TLS, so Request.Scheme is only correct after the forwarded
 // headers are applied. HSTS and HTTPS redirection both short-circuit on a non-HTTPS scheme.
@@ -227,7 +233,8 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 // that a redirect Location is never built from an unrecognised Host header.
 app.UseHostRouting();
 
-app.UseHttpsRedirection();
+app.UseWhen(context => context.Request.Path != "/api/health/live" && context.Request.Path != "/api/health/ready",
+    branch => branch.UseHttpsRedirection());
 
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
@@ -261,9 +268,7 @@ var appHosts = app.Services.AppHosts();
 app.MapHealthChecks("/api/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
 {
-    // Only checks tagged "ready" affect this probe. When SQL is configured, a SQL readiness
-    // check is registered with this tag - it degrades gracefully rather than throwing, so a
-    // briefly unreachable database (e.g. serverless auto-pause resuming) never crashes startup.
+    // Missing configuration, connectivity failure and pending migrations all return 503.
     Predicate = check => check.Tags.Contains("ready")
 });
 app.MapInfoEndpoint();
@@ -287,21 +292,23 @@ await app.RunAsync().ConfigureAwait(false);
 
 static void ConfigureDataProtection(WebApplicationBuilder webApplicationBuilder)
 {
-    var dataProtection = webApplicationBuilder.Services.AddDataProtection()
+    webApplicationBuilder.Services.AddDataProtection()
         .SetApplicationName("trip-side-kick");
-
-    var storage = webApplicationBuilder.Configuration
-        .GetSection(BlobStorageOptions.SectionName)
-        .Get<BlobStorageOptions>();
-
-    if (string.IsNullOrWhiteSpace(storage?.ServiceUri))
-    {
-        // Local development falls back to the default (file system) key ring.
-        return;
-    }
-
-    var containerUri = new Uri(
-        $"{storage.ServiceUri.TrimEnd('/')}/{storage.DataProtectionContainerName}/keys.xml");
-
-    dataProtection.PersistKeysToAzureBlobStorage(containerUri, new DefaultAzureCredential());
+    webApplicationBuilder.Services.AddOptions<RuntimeStateOptions>()
+        .Bind(webApplicationBuilder.Configuration.GetSection("State"))
+        .Validate<IHostEnvironment>((options, environment) => environment.IsDevelopment()
+            || (Path.IsPathFullyQualified(options.KeyRingDirectory ?? string.Empty)
+                && Path.IsPathFullyQualified(options.DocumentsDirectory ?? string.Empty)),
+            "Production requires persistent absolute keyring and document directories.")
+        .ValidateOnStart();
+    webApplicationBuilder.Services.AddOptions<KeyManagementOptions>()
+        .Configure<Microsoft.Extensions.Options.IOptions<RuntimeStateOptions>, ILoggerFactory>((options, state, loggerFactory) =>
+        {
+            if (!string.IsNullOrWhiteSpace(state.Value.KeyRingDirectory))
+            {
+                options.XmlRepository = new FileSystemXmlRepository(
+                    Directory.CreateDirectory(state.Value.KeyRingDirectory), loggerFactory);
+            }
+        });
+    webApplicationBuilder.Services.AddHostedService<RuntimeStateInitializer>();
 }
