@@ -1,6 +1,7 @@
 """Fail closed unless reviewed workflow producers validated this exact source."""
 
 import json
+from datetime import datetime
 import os
 import re
 import subprocess
@@ -15,7 +16,13 @@ def gh(path):
     return json.loads(subprocess.check_output(["gh", "api", path], text=True))
 
 
+def execution_order(run):
+    started = datetime.fromisoformat(run["run_started_at"].replace("Z", "+00:00"))
+    return started, run["run_attempt"], run["id"]
+
+
 def latest_contract_producer(sha, repository, default_branch):
+    candidates = []
     for page in range(1, 21):
         runs = gh(
             f"repos/{repository}/actions/workflows/validate-workload-contract.yml/runs"
@@ -27,12 +34,17 @@ def latest_contract_producer(sha, repository, default_branch):
                     or run.get("display_title") != f"Validate workload contract {sha}"
                     or run.get("repository", {}).get("full_name") != repository):
                 continue
-            jobs = gh(f"repos/{repository}/actions/runs/{run['id']}/jobs?filter=latest&per_page=100")["jobs"]
-            exact = [job for job in jobs if job["name"] == f"workload-contract ({sha})"]
-            return run, max(exact, key=lambda job: job["id"]) if exact else None
+            candidates.append(run)
         if len(runs) < 100:
-            return None
-    raise RuntimeError("Too many trusted workload contract producers.")
+            break
+    else:
+        raise RuntimeError("Too many trusted workload contract producers.")
+    if not candidates:
+        return None
+    run = max(candidates, key=execution_order)
+    jobs = gh(f"repos/{repository}/actions/runs/{run['id']}/jobs?filter=latest&per_page=100")["jobs"]
+    exact = [job for job in jobs if job["name"] == f"workload-contract ({sha})"]
+    return run, max(exact, key=lambda job: job["id"]) if exact else None
 
 
 def trusted_contract_producer(check, sha, repository, default_branch):
@@ -56,12 +68,19 @@ def trusted_contract_producer(check, sha, repository, default_branch):
 
 
 def latest_quality(sha, repository, default_branch):
-    runs = gh(f"repos/{repository}/actions/workflows/codequality.yml/runs?event=push&head_sha={sha}&per_page=100")["workflow_runs"]
+    runs = []
+    for page in range(1, 21):
+        batch = gh(f"repos/{repository}/actions/workflows/codequality.yml/runs?event=push&head_sha={sha}&per_page=100&page={page}")["workflow_runs"]
+        runs.extend(batch)
+        if len(batch) < 100:
+            break
+    else:
+        raise RuntimeError("Too many Code Quality producers.")
     exact = [run for run in runs if run["head_sha"] == sha
              and run.get("event") == "push" and run.get("head_branch") == default_branch
              and run.get("path") == ".github/workflows/codequality.yml"
              and run.get("repository", {}).get("full_name") == repository]
-    return max(exact, key=lambda run: run["id"]) if exact else None
+    return max(exact, key=execution_order) if exact else None
 
 
 def latest_contract(sha, repository):

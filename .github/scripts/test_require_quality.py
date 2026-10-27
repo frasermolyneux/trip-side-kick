@@ -9,6 +9,7 @@ GATE = runpy.run_path(str(Path(__file__).with_name("require-quality.py")))["wait
 SHA = "a" * 40
 REPOSITORY = "owner/repository"
 QUALITY = {
+    "run_started_at": "2026-10-27T18:00:00Z", "run_attempt": 1,
     "id": 10, "head_sha": SHA, "event": "push", "head_branch": "main",
     "path": ".github/workflows/codequality.yml",
     "repository": {"full_name": REPOSITORY}, "status": "completed", "conclusion": "success",
@@ -20,6 +21,7 @@ CHECK = {
     "details_url": f"https://github.com/{REPOSITORY}/actions/runs/99",
 }
 PRODUCER = {
+    "run_started_at": "2026-10-27T18:00:00Z", "run_attempt": 1,
     "id": 99, "event": "workflow_run", "path": ".github/workflows/validate-workload-contract.yml",
     "display_title": f"Validate workload contract {SHA}",
     "head_branch": "main", "repository": {"full_name": REPOSITORY},
@@ -29,7 +31,8 @@ JOB = {"id": 30, "name": f"workload-contract ({SHA})", "status": "completed", "c
 
 
 class PublicationGateTests(unittest.TestCase):
-    def run_gate(self, qualities=None, checks=None, producer=None, jobs=None, newer_producer=None):
+    def run_gate(self, qualities=None, checks=None, producer=None, jobs=None, newer_producer=None,
+                 producer_pages=None):
         def output(command, **_):
             path = command[-1]
             if path == f"repos/{REPOSITORY}":
@@ -41,6 +44,8 @@ class PublicationGateTests(unittest.TestCase):
             elif "/actions/workflows/validate-workload-contract.yml/runs?" in path:
                 result = {"workflow_runs": [PRODUCER if producer is None else producer]
                           + ([newer_producer] if newer_producer else [])}
+                if producer_pages is not None:
+                    result = {"workflow_runs": producer_pages[int(path.rsplit("page=", 1)[1]) - 1]}
             elif "/actions/runs/99/jobs?" in path or "/actions/runs/100/jobs?" in path:
                 result = {"jobs": [JOB] if jobs is None else jobs}
             else:
@@ -81,6 +86,27 @@ class PublicationGateTests(unittest.TestCase):
     def test_new_same_app_check_must_reference_the_latest_successful_producer(self):
         with self.assertRaisesRegex(RuntimeError, "replays an older producer"):
             self.run_gate(newer_producer={**PRODUCER, "id": 100})
+
+    def test_lower_id_rerun_failure_cannot_be_hidden_by_newer_id_success(self):
+        for field in ("contract", "quality"):
+            failed = {**(PRODUCER if field == "contract" else QUALITY),
+                      "run_started_at": "2026-10-27T19:00:00Z", "run_attempt": 2, "conclusion": "failure"}
+            with self.subTest(field=field), self.assertRaisesRegex(RuntimeError, "did not succeed"):
+                if field == "contract":
+                    self.run_gate(producer=failed, newer_producer={**PRODUCER, "id": 100},
+                                  checks=[{**CHECK, "details_url": CHECK["details_url"].replace("/99", "/100")}])
+                else:
+                    self.run_gate(qualities=[failed, {**QUALITY, "id": 11}])
+
+    def test_latest_failed_rerun_on_later_page_rejects_replayed_success(self):
+        first = [{**PRODUCER, "id": 100}] + [
+            {**PRODUCER, "id": number, "display_title": "Another source"} for number in range(101, 200)
+        ]
+        failed = {**PRODUCER, "run_started_at": "2026-10-27T19:00:00Z",
+                  "run_attempt": 2, "conclusion": "failure"}
+        with self.assertRaisesRegex(RuntimeError, "producer did not succeed"):
+            self.run_gate(producer_pages=[first, [failed]],
+                          checks=[{**CHECK, "details_url": CHECK["details_url"].replace("/99", "/100")}])
 
 
 if __name__ == "__main__":
