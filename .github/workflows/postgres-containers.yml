@@ -66,6 +66,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22.x
+      - name: Immutable publication failure handling
+        run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
       - name: Real PostgreSQL persistence and BFF integration tests
         run: dotnet test src/MX.TripSideKick.slnx --filter FullyQualifiedName~IntegrationTests
       - name: Check migration model consistency

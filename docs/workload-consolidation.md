@@ -12,7 +12,9 @@ permissions, and legacy retirement remain platform/operator responsibilities.
 No Terraform resources or state are removed or changed here; destroy workflows
 and retained Entra/vault definitions remain available for coordinated retirement.
 Legacy Azure apply/deploy workflows now fail closed on manual dispatch and have
-no schedule or automatic triggers. PR labels cannot re-enable legacy deployments.
+no schedule or automatic triggers. Development destruction is manual-only; its
+capability and Terraform definitions are retained. PR labels cannot re-enable
+legacy deployments.
 
 ## Runtime contract
 

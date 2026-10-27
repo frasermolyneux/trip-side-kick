@@ -2,6 +2,9 @@ import json
 import os
 import re
 import subprocess
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 
@@ -14,29 +17,51 @@ sha = os.environ["SOURCE_SHA"]
 if registry != "acr7ca0fd3326df" or not re.fullmatch(r"[0-9a-f]{40}", sha):
     raise SystemExit("Publication requires the reviewed registry and an exact source revision.")
 login = json.loads(run("az", "acr", "login", "--name", registry, "--expose-token", "--output", "json"))
+refresh_token = login["accessToken"]
 subprocess.run(
     ["docker", "login", f"{registry}.azurecr.io", "--username",
      "00000000-0000-0000-0000-000000000000", "--password-stdin"],
-    input=login["accessToken"], text=True, check=True
+    input=refresh_token, text=True, check=True
 )
 del login
 images = {}
 for kind in ("web", "postgres"):
     repository = f"workloads/trip-side-kick/{kind}"
     tag = f"{repository}:sha-{sha}"
-    existing = subprocess.run(
-        ["az", "acr", "repository", "show", "--name", registry, "--image", tag, "--output", "json"],
-        text=True, capture_output=True, check=False
+    token_request = urllib.request.Request(
+        f"https://{registry}.azurecr.io/oauth2/token",
+        data=urllib.parse.urlencode({
+            "grant_type": "refresh_token", "service": f"{registry}.azurecr.io",
+            "scope": f"repository:{repository}:pull,push", "refresh_token": refresh_token
+        }).encode(),
+        method="POST"
     )
-    if existing.returncode == 0:
-        metadata = json.loads(existing.stdout)
+    with urllib.request.urlopen(token_request, timeout=30) as response:
+        token = json.load(response)["access_token"]
+    manifest_request = urllib.request.Request(
+        f"https://{registry}.azurecr.io/v2/{repository}/manifests/sha-{sha}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json"
+        },
+        method="HEAD"
+    )
+    try:
+        with urllib.request.urlopen(manifest_request, timeout=30) as response:
+            exists = response.status == 200
+            if not exists:
+                raise SystemExit("Unexpected registry manifest status; publication stopped.")
+    except urllib.error.HTTPError as error:
+        if error.code != 404:
+            raise SystemExit(f"Registry manifest lookup failed with HTTP {error.code}; publication stopped.") from None
+        exists = False
+    if exists:
+        metadata = json.loads(run("az", "acr", "repository", "show", "--name", registry,
+                                  "--image", tag, "--output", "json"))
         if any(metadata["changeableAttributes"][key] for key in ("writeEnabled", "deleteEnabled")):
             raise SystemExit("An existing source tag is not immutable; refusing to overwrite it.")
         digest = metadata["digest"]
     else:
-        # Authentication, authorization, connectivity and registry failures must never look absent.
-        if "MANIFEST_UNKNOWN" not in existing.stderr:
-            raise SystemExit("Could not establish that the source tag is absent; publication stopped.")
         target = f"{registry}.azurecr.io/{tag}"
         dockerfile = "Dockerfile" if kind == "web" else "deployment/postgres.Dockerfile"
         subprocess.run(["docker", "build", "--file", dockerfile, "--tag", target, "."], check=True)
