@@ -58,6 +58,18 @@ class RuntimeBootstrapTests(unittest.TestCase):
                 bootstrap.main()
         discover.assert_not_called()
 
+    def test_unchanged_reviewed_configuration_does_not_create_versions_or_restarts(self):
+        digest = bootstrap.hashlib.sha256(bootstrap.json.dumps(
+            self.discovered[-1], sort_keys=True).encode()).hexdigest()
+        existing = {"tags": {"configuration-sha256": digest}, "properties": {"attributes": {}}}
+        with patch.dict(bootstrap.os.environ, {"GITHUB_REF": "refs/heads/main"}), \
+                patch.object(bootstrap, "discover", return_value=self.discovered), \
+                patch.object(bootstrap, "metadata", return_value=existing), \
+                patch.object(bootstrap, "rotate_certificate"), \
+                patch.object(bootstrap, "publish") as publish:
+            bootstrap.main()
+        publish.assert_not_called()
+
     def test_foreign_or_disabled_secret_is_not_adopted(self):
         for tags, enabled in (({"managed-by": "other"}, True), ({"managed-by": "workload"}, False)):
             with self.subTest(tags=tags, enabled=enabled), patch.object(

@@ -183,8 +183,12 @@ def rotate_certificate(workload, vault, app, tenant, token, now):
         name = prefix + str(uuid.uuid4())
         az_json("ad", "app", "credential", "reset", "--id", app["id"], "--append",
                 "--cert", f"@{certificate}", "--display-name", name, "--end-date", expiry.strftime("%Y-%m-%dT%H:%M:%SZ"))
-        keys = az_json("ad", "app", "credential", "list", "--id", app["id"], "--cert")
-        matching = [entry for entry in keys if entry.get("displayName") == name]
+        for attempt in range(12):
+            keys = az_json("ad", "app", "credential", "list", "--id", app["id"], "--cert")
+            matching = [entry for entry in keys if entry.get("displayName") == name]
+            if matching or attempt == 11:
+                break
+            time.sleep(5)
         if len(matching) != 1:
             raise BootstrapError("New public certificate registration did not verify; no private key published.")
         verify_authentication(app, tenant, certificate, key, now)
@@ -206,6 +210,8 @@ def main():
         raise BootstrapError("Runtime bootstrap is restricted to approved main.")
     workload, vault, app, tenant, token, config = discover()
     password = metadata(vault, "database-password", token, workload)
+    existing = metadata(vault, "runtime-configuration", token, workload)
+    metadata(vault, "client-certificate", token, workload)
     if password is None:
         publish(vault, "database-password", token, workload, secrets.token_urlsafe(48))
         print("Created database password.")
@@ -214,11 +220,15 @@ def main():
     else:
         print("Retained database password.")
     rotate_certificate(workload, vault, app, tenant, token, datetime.now(timezone.utc))
-    existing = metadata(vault, "runtime-configuration", token, workload)
     if existing is None and "Sql" in config:
         config["Sql"]["InitializeOnStartup"] = True
-    publish(vault, "runtime-configuration", token, workload, json.dumps(config))
-    print("Published reviewed runtime configuration; trusted Caddy addresses are hydrated only on the host.")
+    digest = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+    if existing is None or (existing.get("tags") or {}).get("configuration-sha256") != digest:
+        publish(vault, "runtime-configuration", token, workload, json.dumps(config),
+                tags={"configuration-sha256": digest})
+        print("Published reviewed runtime configuration; trusted Caddy addresses are hydrated only on the host.")
+    else:
+        print("Retained unchanged runtime configuration.")
 
 
 if __name__ == "__main__":
