@@ -1,0 +1,21 @@
+name: Runtime Bootstrap Tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/bootstrap*.py"
+      - ".github/scripts/test_bootstrap*.py"
+      - ".github/workflows/bootstrap-runtime.yml"
+      - ".github/workflows/renew-origin-tls.yml"
+      - ".github/workflows/runtime-bootstrap-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Verify idempotence and fail-closed credential publication
+        run: python3 -m unittest discover -s .github/scripts -p 'test_bootstrap*.py' -v
