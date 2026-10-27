@@ -4,10 +4,14 @@ import argparse
 import json
 import os
 import re
+import runpy
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+
+wait_contract = runpy.run_path(str(Path(__file__).with_name("require-quality.py")))["wait_for_contract"]
 
 
 COPILOT_LOGINS = {
@@ -492,6 +496,7 @@ def main() -> None:
     wait_for_quality(args.workflow, branch, head_sha)
     wait_for_pull_request_quality(args.workflow, branch, head_sha)
     wait_for_copilot_review(owner, name, number, head_sha)
+    wait_contract(head_sha, repository)
     if has_newer_image_inputs(
         args.source_sha, args.image_input_pattern
     ) or has_newer_service_images(args.source_sha, set(updates)):
@@ -508,21 +513,17 @@ def main() -> None:
         )
         print(f"Closed superseded image promotion pull request #{number}.")
         return
-    base_ref = run(
-        "gh",
+    current = gh_json(
         "pr",
         "view",
         str(number),
         "--repo",
         repository,
         "--json",
-        "baseRefName",
-        "--jq",
-        ".baseRefName",
-        capture=True,
+        "baseRefName,headRefOid",
     )
-    if base_ref != "main":
-        raise RuntimeError("The promotion pull request no longer targets main.")
+    if current != {"baseRefName": "main", "headRefOid": head_sha}:
+        raise RuntimeError("The promotion pull request's exact head or base changed.")
     print(f"Image promotion pull request #{number} passed exact-head quality and review; awaiting manual merge.")
 
 
