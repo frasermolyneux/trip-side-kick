@@ -9,17 +9,11 @@ using MX.TripSideKick.Infrastructure.Persistence;
 namespace MX.TripSideKick.Infrastructure.HealthChecks;
 
 /// <summary>
-/// Optional readiness check that pings SQL. Tagged <c>ready</c> so it only ever affects
-/// <c>/api/health/ready</c> - never <c>/api/health/live</c> - and degrades to
-/// <see cref="HealthStatus.Degraded"/> rather than throwing/crashing startup if SQL is briefly
-/// unavailable (e.g. serverless auto-pause resuming).
+/// Checks PostgreSQL connectivity and migration state. Missing configuration, pending schema
+/// changes and connection failures are unhealthy without affecting liveness.
 /// </summary>
 /// <remarks>
-/// Registered unconditionally by <c>AddTripSideKickInfrastructure</c>. This check resolves
-/// <see cref="SqlOptions"/> lazily and reports <see cref="HealthStatus.Healthy"/> without ever
-/// resolving <see cref="TripSideKickDbContext"/> when no connection string is configured - the
-/// <see cref="TripSideKickDbContext"/> registration has no provider configured in that case, so
-/// resolving it would throw.
+/// Options resolve lazily so final runtime and test overrides are honored.
 /// </remarks>
 public sealed class SqlReadinessHealthCheck(IOptions<SqlOptions> sqlOptions, IServiceProvider serviceProvider) : IHealthCheck
 {
@@ -32,7 +26,7 @@ public sealed class SqlReadinessHealthCheck(IOptions<SqlOptions> sqlOptions, ISe
     {
         if (string.IsNullOrWhiteSpace(sqlOptions.Value.ConnectionString))
         {
-            return HealthCheckResult.Healthy("SQL is not configured; readiness check skipped.");
+            return HealthCheckResult.Unhealthy("PostgreSQL is not configured.");
         }
 
         try
@@ -40,15 +34,16 @@ public sealed class SqlReadinessHealthCheck(IOptions<SqlOptions> sqlOptions, ISe
             var dbContext = serviceProvider.GetRequiredService<TripSideKickDbContext>();
             var canConnect = await dbContext.Database.CanConnectAsync(cancellationToken).ConfigureAwait(false);
 
-            return canConnect
+            var pending = canConnect
+                ? await dbContext.Database.GetPendingMigrationsAsync(cancellationToken).ConfigureAwait(false)
+                : ["unreachable"];
+            return canConnect && !pending.Any()
                 ? HealthCheckResult.Healthy("SQL is reachable.")
-                : HealthCheckResult.Degraded("SQL is not currently reachable.");
+                : HealthCheckResult.Unhealthy("PostgreSQL is not currently reachable.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            // Never let a transient SQL problem (e.g. serverless auto-pause resuming) take the
-            // whole readiness probe down with an unhandled exception.
-            return HealthCheckResult.Degraded("SQL is not currently reachable.", exception);
+            return HealthCheckResult.Unhealthy("PostgreSQL is not currently reachable.");
         }
     }
 }

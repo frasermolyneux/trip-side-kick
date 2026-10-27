@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "trip-side-kick",
+  "applicationType": "container",
+  "networks": [
+    {"name": "database", "internetAccess": false},
+    {"name": "public-proxy", "internetAccess": true}
+  ],
+  "services": [
+    {
+      "name": "trip-side-kick-web",
+      "image": "acr7ca0fd3326df.azurecr.io/workloads/trip-side-kick/web@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "runAs": "1654:1654",
+      "environment": {
+        "ASPNETCORE_ENVIRONMENT": "Production",
+        "TRIPSIDEKICK_RUNTIME_FILE": "/run/secrets/runtime-configuration"
+      },
+      "networks": ["database", "public-proxy"],
+      "mounts": [
+        {"id": "keyring", "target": "/app/state/keys", "readOnly": false},
+        {"id": "documents", "target": "/app/state/documents", "readOnly": false}
+      ],
+      "secrets": [
+        {"id": "runtime-configuration", "target": "runtime-configuration"},
+        {"id": "client-certificate", "target": "client-certificate"},
+        {"id": "database-password", "target": "database-password"}
+      ],
+      "tmpfs": ["/tmp"],
+      "resources": {"cpus": 1, "memoryMb": 768, "pids": 128},
+      "health": {
+        "test": ["CMD", "dotnet", "MX.TripSideKick.Web.dll", "--readiness"],
+        "intervalSeconds": 15, "timeoutSeconds": 5, "retries": 3, "startPeriodSeconds": 60
+      }
+    },
+    {
+      "name": "trip-side-kick-postgres",
+      "image": "acr7ca0fd3326df.azurecr.io/workloads/trip-side-kick/postgres@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "runAs": "999:1654",
+      "networks": ["database"],
+      "mounts": [
+        {"id": "postgres", "target": "/var/lib/postgresql/data", "readOnly": false}
+      ],
+      "secrets": [
+        {"id": "database-password", "target": "database-password"}
+      ],
+      "tmpfs": ["/tmp"],
+      "resources": {"cpus": 1, "memoryMb": 512, "pids": 128},
+      "health": {
+        "test": ["CMD", "pg_isready", "--host=127.0.0.1", "--username=tripsidekick", "--dbname=tripsidekick"],
+        "intervalSeconds": 15, "timeoutSeconds": 5, "retries": 3, "startPeriodSeconds": 60
+      }
+    }
+  ],
+  "ingress": [],
+  "deployment": {"healthTimeoutSeconds": 300, "healthPollSeconds": 3, "rollbackOnFailure": true}
+}

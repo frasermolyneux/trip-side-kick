@@ -1,45 +1,54 @@
 using Microsoft.EntityFrameworkCore;
 
+using DotNet.Testcontainers.Builders;
+
 using MX.TripSideKick.Infrastructure.Persistence;
 
-using Testcontainers.MsSql;
+using Testcontainers.PostgreSql;
 
 namespace MX.TripSideKick.Web.Tests.Integration;
 
-/// <summary>
-/// Starts a single, hermetic SQL Server container (via Testcontainers) shared by every test class
-/// in the <c>"SQL Server integration"</c> collection, applies the real EF Core migrations against
-/// it once, and exposes the resulting connection string. No Azure SQL, no seeded cloud state - the
-/// database only ever exists for the lifetime of the test run.
-/// </summary>
-/// <remarks>
-/// Requires a working Docker (or Podman, via <c>TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE</c>) daemon
-/// on the machine running the tests - see docs/testing.md for local/CI prerequisites. If Docker is
-/// unavailable, <see cref="InitializeAsync"/> throws and every test in the collection fails with a
-/// clear "container failed to start" error rather than silently skipping coverage.
-/// </remarks>
+/// <summary>Real PostgreSQL 18, supplied by CI or a disposable local container; never skipped.</summary>
 public sealed class SqlServerContainerFixture : IAsyncLifetime
 {
-    private readonly MsSqlContainer container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
+    private PostgreSqlContainer? container;
 
-    public string ConnectionString => container.GetConnectionString();
+    public string ConnectionString { get; private set; } = string.Empty;
 
     public async Task InitializeAsync()
     {
-        await container.StartAsync().ConfigureAwait(false);
+        ConnectionString = Environment.GetEnvironmentVariable("TRIPSIDEKICK_TEST_POSTGRES") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(ConnectionString))
+        {
+            container = new PostgreSqlBuilder("postgres:18-bookworm")
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("pg_isready", "-U", "postgres"))
+                .Build();
+            await container.StartAsync().ConfigureAwait(false);
+            ConnectionString = container.GetConnectionString();
+        }
 
-        var optionsBuilder = new DbContextOptionsBuilder<TripSideKickDbContext>();
-        optionsBuilder.UseSqlServer(ConnectionString);
-        await using var dbContext = new TripSideKickDbContext(optionsBuilder.Options);
-        await dbContext.Database.MigrateAsync().ConfigureAwait(false);
+        ConnectionString = new Npgsql.NpgsqlConnectionStringBuilder(ConnectionString)
+        {
+            GssEncryptionMode = Npgsql.GssEncryptionMode.Disable,
+            SslMode = Npgsql.SslMode.Disable
+        }.ConnectionString;
+        var options = new DbContextOptionsBuilder<TripSideKickDbContext>().UseNpgsql(ConnectionString);
+        await using var database = new TripSideKickDbContext(options.Options);
+        await DatabaseInitializer.InitializeAsync(database).ConfigureAwait(false);
+        await DatabaseInitializer.InitializeAsync(database).ConfigureAwait(false);
     }
 
-    public async Task DisposeAsync() => await container.DisposeAsync().ConfigureAwait(false);
+    public async Task DisposeAsync()
+    {
+        if (container is not null)
+        {
+            await container.DisposeAsync().ConfigureAwait(false);
+        }
+    }
 }
 
-/// <summary>Groups every integration test class that needs the shared <see cref="SqlServerContainerFixture"/>.</summary>
 [CollectionDefinition(Name)]
 public sealed class SqlServerTestGroup : ICollectionFixture<SqlServerContainerFixture>
 {
-    public const string Name = "SQL Server integration";
+    public const string Name = "PostgreSQL integration";
 }

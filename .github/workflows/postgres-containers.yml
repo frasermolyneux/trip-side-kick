@@ -1,0 +1,93 @@
+name: PostgreSQL and Containers
+on:
+  workflow_call:
+permissions: {}
+jobs:
+  contract:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Read-only trusted contract token
+        id: platform-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PEM }}
+          owner: ${{ github.repository_owner }}
+          repositories: platform-baremetal
+          permission-contents: read
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: frasermolyneux/platform-baremetal
+          ref: 3088169b94996801e42e10d008776f4b1390e49f
+          path: .platform-contract
+          token: ${{ steps.platform-token.outputs.token }}
+          persist-credentials: false
+      - name: Compile nondeployable workload against trusted platform contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv .validation-venv
+          .validation-venv/bin/python -m pip install --disable-pip-version-check --require-hashes \
+            -r .platform-contract/.github/actions/validate-workload-manifest/requirements.lock
+          .validation-venv/bin/python .platform-contract/ansible/roles/workload_contract/files/compile_manifest.py \
+            workload.json .platform-contract/ansible/roles/workload_contract/files/workload.schema.json \
+            .github/validation/policy.json .platform-contract/ansible/roles/workload_contract/files/policy.schema.json \
+            artifacts/workload-validation
+  postgres-and-containers:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_USER: tripsidekick
+          POSTGRES_PASSWORD: ci-disposable-only
+          POSTGRES_DB: tripsidekick
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tripsidekick -d tripsidekick"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      TRIPSIDEKICK_TEST_POSTGRES: Host=127.0.0.1;Database=tripsidekick;Username=tripsidekick;Password=ci-disposable-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+      - name: Real PostgreSQL persistence and BFF integration tests
+        run: dotnet test src/MX.TripSideKick.slnx --filter FullyQualifiedName~IntegrationTests
+      - name: Check migration model consistency
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --project src/MX.TripSideKick.Infrastructure --startup-project src/MX.TripSideKick.Web --no-build
+      - name: Browser journeys with isolated PostgreSQL
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          dotnet dev-certs https
+          npm run test:e2e
+      - name: Build constrained application and PostgreSQL images
+        run: |
+          docker build --tag tripsidekick-web:ci .
+          docker build --file deployment/postgres.Dockerfile --tag tripsidekick-postgres:ci .
+          python3 deployment/test_containers.py
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-postgres-${{ github.run_id }}
+          path: tests/e2e/playwright-report/
+          if-no-files-found: ignore

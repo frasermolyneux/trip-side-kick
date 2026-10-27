@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Hosting;
 
 using MX.TripSideKick.Application.Common;
 using MX.TripSideKick.Application.Invitations;
@@ -15,7 +16,6 @@ using MX.TripSideKick.Infrastructure.Notifications;
 using MX.TripSideKick.Infrastructure.Options;
 using MX.TripSideKick.Infrastructure.Persistence;
 using MX.TripSideKick.Infrastructure.Persistence.Repositories;
-using MX.TripSideKick.Infrastructure.Storage;
 
 namespace MX.TripSideKick.Infrastructure;
 
@@ -32,9 +32,8 @@ public static class InfrastructureServiceCollectionExtensions
     /// callers transparently get the in-memory "empty" implementations. That decision is resolved
     /// lazily (from <see cref="IOptions{SqlOptions}"/> at DI-resolution time), not eagerly from
     /// <paramref name="configuration"/> here - see the inline remarks below for why. Environments
-    /// without a connection string (e.g. local dev without docker-compose, or a deploy slice before
-    /// the database is wired up) keep startup and <c>/api/health/ready</c> working without ever
-    /// touching SQL.
+    /// without a connection string may use these deterministic fallbacks only in Development;
+    /// startup validation rejects unconfigured production and readiness never skips the database.
     /// </remarks>
     public static IServiceCollection AddTripSideKickInfrastructure(
         this IServiceCollection services,
@@ -43,11 +42,13 @@ public static class InfrastructureServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddOptions<SqlOptions>().Bind(configuration.GetSection(SqlOptions.SectionName));
-        services.AddOptions<BlobStorageOptions>().Bind(configuration.GetSection(BlobStorageOptions.SectionName));
+        services.AddOptions<SqlOptions>().Bind(configuration.GetSection(SqlOptions.SectionName))
+            .Validate<IHostEnvironment>((options, environment) =>
+                environment.IsDevelopment() || !string.IsNullOrWhiteSpace(options.ConnectionString),
+                "PostgreSQL must be configured outside Development.")
+            .ValidateOnStart();
 
         services.AddMemoryCache();
-        services.TryAddSingleton<BlobStorageClientFactory>();
         services.TryAddScoped<IInvitationNotifier, LoggingInvitationNotifier>();
 
         // Whether SQL persistence is enabled is resolved lazily from IOptions<SqlOptions> at
@@ -62,10 +63,10 @@ public static class InfrastructureServiceCollectionExtensions
         // whatever connection string is actually in effect once the host is fully built.
         services.AddDbContext<TripSideKickDbContext>((serviceProvider, options) =>
         {
-            var connectionString = serviceProvider.GetRequiredService<IOptions<SqlOptions>>().Value.ConnectionString;
+            var connectionString = serviceProvider.GetRequiredService<IOptions<SqlOptions>>().Value.GetConnectionString();
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
-                options.UseSqlServer(connectionString);
+                options.UseNpgsql(connectionString);
             }
         });
 
@@ -97,9 +98,7 @@ public static class InfrastructureServiceCollectionExtensions
             ? ActivatorUtilities.CreateInstance<EfUnitOfWork>(serviceProvider)
             : new NoOpUnitOfWork());
 
-        // Registered unconditionally: SqlReadinessHealthCheck itself resolves IOptions<SqlOptions>
-        // lazily and reports Healthy without touching SQL when no connection string is configured,
-        // so startup/readiness stays safe whether or not SQL is wired up.
+        // Readiness fails for missing configuration, unavailable PostgreSQL or pending migrations.
         services.AddHealthChecks()
             .AddCheck<SqlReadinessHealthCheck>("sql", tags: ["ready"]);
 

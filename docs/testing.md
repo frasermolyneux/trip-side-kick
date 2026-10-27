@@ -323,3 +323,11 @@ error/success states and the `data-testid`s the Playwright suite also relies on.
     Components / RSC mode (it's a client-only SPA served as static files), so the advisory's attack
     surface does not apply here. `npm audit fix --force` would pull a breaking `react-router-dom`
     major bump. Accepted as low risk for now; revisit at the next planned React Router upgrade.
+# Current PostgreSQL harness
+
+The .NET Testcontainers fixture and Playwright backing service now use
+**PostgreSQL 18**, not SQL Server. CI also runs all expensive `IntegrationTests`
+against a disposable PostgreSQL service using `TRIPSIDEKICK_TEST_POSTGRES`.
+See [current runtime validation](workload-consolidation.md#local-development-and-validation)
+for commands and constrained-image smoke tests. SQL Server references below are
+legacy context and must not be used to configure the current application.

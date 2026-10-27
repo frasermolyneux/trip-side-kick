@@ -1,51 +1,67 @@
 # AGENTS.md — trip-side-kick
 
-Trip Side Kick: an ASP.NET Core (.NET 10) modular monolith serving a Razor Pages brochure site and a React + TypeScript PWA / versioned `/v1` API from one Azure App Service, provisioned with Terraform and fronted by Cloudflare DNS.
+.NET 10 modular monolith: Razor brochure on tripsidekick.net, React PWA/BFF on
+tripsidekick.app. PostgreSQL 18 and constrained containers replace the Azure SQL/
+App Service runtime. Read `.github/copilot-instructions.md`,
+`docs/workload-consolidation.md` and `docs/identity-and-access.md` first.
 
-Execution brief for coding agents. See `.github/copilot-instructions.md` for architecture/domain detail, `docs/architecture-overview.md` for the host-surface split, and `docs/identity-and-access.md` before touching anything auth-shaped — identity is **stubbed**. `AddObservability()` (`MX.Observability.ApplicationInsights.AspNetCore`) is the shared telemetry package; don't hand-roll initialisers.
+## Validation
 
-## Build / test / run commands
-
-```bash
-# .NET (repo root) — warnings are errors
-dotnet build src/MX.TripSideKick.slnx
-dotnet test  src/MX.TripSideKick.slnx
-dotnet test  src/MX.TripSideKick.slnx --filter "FullyQualifiedName~HostRoutingTests"   # single class
-dotnet test  src/MX.TripSideKick.slnx --filter "FullyQualifiedName!~IntegrationTests"  # CI's filter
-
-# Format gate — run from src/, exactly as CI does
-cd src && dotnet format "." --verify-no-changes
-
-# Client (src/MX.TripSideKick.Web/ClientApp)
-npm ci && npm run build && npm run test
-
-# Terraform (terraform/) — offline validation only; plan/apply needs CI credentials
-terraform fmt -check -recursive
-terraform init -lockfile=readonly -backend=false
-terraform validate
-
-# Local run
-dotnet run --project src/MX.TripSideKick.Web    # https://localhost:7207 = app, http://127.0.0.1:5207 = site
+```powershell
+dotnet build src\MX.TripSideKick.slnx
+dotnet test src\MX.TripSideKick.slnx --filter 'FullyQualifiedName!~IntegrationTests'
+dotnet test src\MX.TripSideKick.slnx --filter 'FullyQualifiedName~IntegrationTests'
+dotnet format src\MX.TripSideKick.slnx --verify-no-changes
+# Client directory: src\MX.TripSideKick.Web\ClientApp
+npm ci
+npm run build
+npm run test
+docker build -t tripsidekick-web:ci .
+docker build -f deployment\postgres.Dockerfile -t tripsidekick-postgres:ci .
+python deployment\test_containers.py
 ```
 
-Run only the block(s) your change touches. LF endings only (`.gitattributes` / `.editorconfig`) — `dotnet format --verify-no-changes` fails on CRLF, the most common Windows-authored CI break.
+Integration/container/browser tests require a responsive Linux Docker daemon.
+`TRIPSIDEKICK_TEST_POSTGRES` may select a disposable CI database. Never point
+tests at real data. Local backing services: `docker compose up -d postgres`.
+Use LF endings, including generated migrations; warnings are errors.
 
-## Do NOT
+## Boundaries
 
-- ❌ Client secrets, connection strings, or hard-coded subscription IDs/GUIDs. Auth is OIDC + managed identity only.
-- ❌ Change resource naming/tagging conventions.
-- ❌ Assume tools/SDKs beyond what `copilot-setup-steps.yml` provisions.
-- ❌ Add an Azure DNS zone or `DNS Zone Contributor` role — DNS is **Cloudflare**, not Azure.
-- ❌ Create another App Service plan or a Log Analytics workspace — Development owns the single B1
-  plan declared in `terraform/service_plan.tf`; Production hosting and both environments' monitoring
-  come from platform remote state.
-- ❌ Implement auth opportunistically — identity needs Graph permissions this workload lacks; keep `IDENTITY STUB` / `TODO (identity slice)` markers unless that's the assigned task.
-- ❌ Add MediatR/CQRS or a separate API/SPA deployment — one App Service, two host surfaces.
-- ❌ Add `/health` or `/healthz` aliases — exactly `/api/health/live` and `/api/health/ready`.
-- ❌ Put `IntegrationTests` in a test FQN unless genuinely expensive — CI filters that string out.
-- ❌ Commit `src/MX.TripSideKick.Web/wwwroot/` (generated, git-ignored) — brochure assets belong in `SiteAssets/`.
-- ❌ Hand-edit `ClientApp/src/api/generated/schema.ts` — regenerate via `npm run generate-api`.
-- ❌ Log or trace PII: trip content, document contents, booking references, emails, display names.
+* Preserve host-aware route and static asset segregation; extend host tests when
+  adding routes. Health paths are exactly `/api/health/live` and `/api/health/ready`.
+* Preserve PKCE/cookies/no browser tokens, CSRF, optimistic concurrency/ETags,
+  unique error translation and serializable last-owner invariants.
+* Production must not run with an unconfigured database or ephemeral keyring.
+  Initialization is explicit, never `EnsureCreated`/automatic database reset.
+* Test-auth is local Development-only, opt-in and never allowed in Production.
+* Trust only explicitly supplied reverse-proxy IPs plus framework loopback
+  defaults; never clear forwarded-header network/proxy allowlists.
+* No secrets, private certificates, live runtime JSON, state, plans, generated
+  wwwroot, logs or PII in Git. Brochure assets live in `SiteAssets/`.
+* Do not hand-edit `ClientApp/src/api/generated/schema.ts`; use `npm run generate-api`.
+* No hosted dev environment, privileged runners/containers, Docker VOLUME
+  metadata, host database port, or separate API/SPA deployment.
+* `workload.json` zero digests are intentionally nondeployable. No host activation,
+  deployment, resource destruction, credential rotation or PR merge as collateral.
+* Retain Terraform destroy capability and identity/vault definitions until the
+  platform coordinates retirement. Do not mutate Terraform state or GCP resources.
+* Preserve required CI checks: `dependabot-policy`, `SonarCloud Code Analysis`,
+  `build-and-test`, `quality / Code Quality`,
+  `devops-secure-scanning / DevOps Secure Scanning`.
+* Keep `AddObservability()` for shared telemetry; never emit trip/document/contact
+  content, booking references, emails or display names.
 
+## Terraform retained tooling
 
-CI-only main pushes are excluded by deployment push-path filters before workflow concurrency; they do not enqueue or displace cloud/backend deployments. Automatic deployment requires a change to the workload inputs already declared by the deployment filters; scheduled maintenance and explicit workflow dispatch retain their existing behavior. A deployment-workflow-only change requires explicit dispatch to exercise cloud operations.
+Select the exact committed `terraform/.terraform-version` CLI before running
+offline validation. Commit `.terraform.lock.hcl`; normal init is read-only:
+
+```powershell
+terraform -chdir=terraform fmt -check -recursive
+terraform -chdir=terraform init -lockfile=readonly -backend=false
+terraform -chdir=terraform validate
+```
+
+Regenerate provider selections only in a reviewed dependency-update PR.
+Do not plan/apply/import/move/remove real state without an explicit operation.

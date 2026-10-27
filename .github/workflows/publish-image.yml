@@ -1,0 +1,64 @@
+name: Publish Image
+on:
+  workflow_run:
+    workflows: [Build and Test]
+    types: [completed]
+permissions: {}
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: trip-side-kick-publication
+      cancel-in-progress: false
+    environment: Production
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Check image inputs
+        id: inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          pattern="$(tr -d '\r\n' <.github/image-input-pattern.txt)"
+          if git diff-tree --no-commit-id --name-only -r HEAD | grep -Eq "$pattern"; then
+            echo "publish=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >>"$GITHUB_OUTPUT"
+          fi
+      - name: Require exact-revision quality
+        if: steps.inputs.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: python3 .github/scripts/require-quality.py
+      - uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43
+        if: steps.inputs.outputs.publish == 'true'
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Publish immutable web and PostgreSQL images
+        if: steps.inputs.outputs.publish == 'true'
+        env:
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKLOAD_ACR_NAME: ${{ vars.WORKLOAD_ACR_NAME }}
+        run: python3 .github/scripts/publish-workload-images.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: steps.inputs.outputs.publish == 'true'
+        with:
+          name: image-promotion
+          path: promotion/payload.json
+          if-no-files-found: error
+          retention-days: 1

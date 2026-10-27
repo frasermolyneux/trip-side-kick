@@ -43,7 +43,7 @@ public sealed class TravellerEntityTypeConfiguration : IEntityTypeConfiguration<
         // too, but a filtered unique index keeps it true even under concurrent writes).
         builder.HasIndex(t => t.LinkedMembershipId)
             .IsUnique()
-            .HasFilter("[LinkedMembershipId] IS NOT NULL");
+            .HasFilter("\"LinkedMembershipId\" IS NOT NULL");
 
         builder.HasIndex(t => t.TripId);
     }

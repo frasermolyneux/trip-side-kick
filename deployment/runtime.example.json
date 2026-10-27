@@ -1,0 +1,29 @@
+{
+  "Sql": {
+    "ConnectionString": "Host=trip-side-kick-postgres;Database=tripsidekick;Username=tripsidekick;GSS Encryption Mode=Disable",
+    "PasswordFile": "/run/secrets/database-password",
+    "InitializeOnStartup": false
+  },
+  "AzureAd": {
+    "Instance": "https://login.microsoftonline.com/",
+    "TenantId": "e56a6947-bb9a-4a6e-846a-1f118d1c3a14",
+    "ClientId": "3e35a831-c4e4-467e-a276-d44fa4ec46e4",
+    "CallbackPath": "/signin-oidc",
+    "SignedOutCallbackPath": "/signout-callback-oidc",
+    "ClientCertificateFile": "/run/secrets/client-certificate"
+  },
+  "State": {
+    "KeyRingDirectory": "/app/state/keys",
+    "DocumentsDirectory": "/app/state/documents"
+  },
+  "ForwardedHeaders": {
+    "KnownProxies": []
+  },
+  "Health": {
+    "Host": "tripsidekick.app"
+  },
+  "HostRouting": {
+    "AppHosts": ["tripsidekick.app"],
+    "SiteHosts": ["tripsidekick.net"]
+  }
+}

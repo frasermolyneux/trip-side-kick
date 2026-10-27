@@ -1,54 +1,64 @@
 # Copilot Instructions — trip-side-kick
 
-Travel itinerary planner. One ASP.NET Core (.NET 10) modular monolith serves **two public surfaces** from a single Azure App Service; Terraform provisions the infrastructure; Cloudflare owns DNS. Start with `AGENTS.md` for task-execution rules and `docs/architecture-overview.md` for the full picture.
+Read `AGENTS.md` for commands and guardrails and `docs/workload-consolidation.md`
+for the authoritative constrained-runtime/CI contract.
 
-## The one thing that will surprise you: host-aware routing
+## Architecture
 
-The same deployed app serves two hostnames and refuses to blur them.
+One .NET 10 modular monolith serves two strictly isolated host surfaces:
 
-| Surface | prd | dev | Content |
-| --- | --- | --- | --- |
-| `site` | `tripsidekick.net` | `dev.tripsidekick.net` | Razor Pages brochure/marketing |
-| `app` | `tripsidekick.app` | `dev.tripsidekick.app` | React PWA shell + versioned `/v1` API |
+* `tripsidekick.net`: anonymous Razor brochure pages and `SiteAssets/`.
+* `tripsidekick.app`: React PWA bundle in generated `wwwroot/`, `/v1` BFF/API,
+  OpenAPI and Entra workforce B2B sign-in.
 
-* `Hosting/HostSurfaceMiddleware.cs` runs pre-routing: unknown `Host` ⇒ `400`, `www.<apex>` ⇒ `308` to apex.
-* `Program.cs` applies `.RequireHost(...)` to `MapRazorPages()` (site hosts) and to `MapControllers()` / `MapOpenApi()` / `MapFallbackToFile("index.html")` (app hosts).
-* Static files are host-scoped too, via `UseWhen` on the resolved surface: the app surface serves the Vite-generated `wwwroot/`, the site surface serves the source-controlled `SiteAssets/`. Without that split `UseStaticFiles` would serve `/index.html` on the brochure host and defeat the fallback restriction.
-* Allow lists come from config (`HostRouting:SiteHosts` / `HostRouting:AppHosts`), written by Terraform as `HostRouting__SiteHosts__0`-style app settings, always including the `*.azurewebsites.net` default hostname.
-* **Do not** put host lists in `appsettings.Development.json` — the dev App Service sets `ASPNETCORE_ENVIRONMENT=Development` and index-keyed arrays would silently shadow Terraform's values. Local dev host lists live in `Properties/launchSettings.json`.
-* `/api/health/live`, `/api/health/ready` and `/info` are intentionally **not** host-restricted (App Service probes and the deployment version gate hit the default hostname).
-* Guarded by `MX.TripSideKick.Web.Tests/Hosting/HostRoutingTests.cs` — extend it whenever you add a route.
+`HostSurfaceMiddleware` runs before routing, rejects unknown hosts and canonicalizes
+www to apex. Endpoint `.RequireHost(...)` and host-scoped static middleware must
+remain paired. Health/info are reachable on any configured host, not arbitrary
+hosts. Do not place host arrays in appsettings.Development.json.
 
-## Project layout and boundaries
+Dependencies point inward: Domain → Application interfaces/services →
+Infrastructure EF repositories → Web composition. No MediatR/CQRS or independent
+SPA/API deployment. Noda Time dates, decimal/ISO currencies, UUIDv7 identifiers.
 
-`src/MX.TripSideKick.slnx` — dependencies point inwards only, no MediatR/CQRS.
+## Persistence/runtime
 
-* `MX.TripSideKick.Domain` — aggregates/value objects. Noda Time dates, `decimal` + ISO 4217 money (`Common/Money.cs`), UUIDv7 ids (`Trips/TripId.cs`), `rowversion` concurrency.
-* `MX.TripSideKick.Application` — feature-oriented services (`Trips/TripCatalogService.cs`) and the interfaces they need (`Trips/ITripRepository.cs`, `Abstractions/ICurrentUser.cs`).
-* `MX.TripSideKick.Infrastructure` — EF Core `DbContext`, cache-first repositories (`Persistence/Repositories/SqlTripRepository.cs`), Azure SDK clients.
-* `MX.TripSideKick.Web` — host: Razor Pages (`Pages/`), versioned controllers (`Controllers/V1/`), middleware (`Hosting/`), composition root (`Program.cs`).
-* `MX.TripSideKick.Web.Tests` — xUnit; in-process pipeline tests via `TripSideKickApplicationFactory`.
+PostgreSQL 18 via Npgsql replaces SQL Server. Fresh initial migrations are
+intentional; SQL Server migration history is not reused. PostgreSQL defaults and
+update triggers generate byte-array concurrency values used by existing ETags.
+Translate unique violations and serialization/deadlock conflicts into existing
+domain errors; retain serializable transactions for cross-row owner invariants.
 
-Each layer has its own `*ServiceCollectionExtensions.cs`; `Program.cs` calls them and owns nothing else DI-shaped.
+`Sql:PasswordFile` supplies credentials independently of the nonsecret connection
+settings. Missing configuration outside Development fails startup. Readiness
+requires actual DB connectivity and no pending migrations. Initialization is
+explicit via `--initialize-database` or `Sql:InitializeOnStartup`.
 
-## Non-obvious conventions
+`deployment/runtime.example.json` describes configuration loaded before composition
+from `TRIPSIDEKICK_RUNTIME_FILE`. Local Data Protection keys and documents are
+persistent mounts; the Entra certificate is a base64 PFX text secret loaded with
+ephemeral private-key storage. PKCE, HttpOnly secure cookies, antiforgery and
+server-only tokens remain intact. Test-auth must never work in Production,
+regardless of WEBSITE_INSTANCE_ID.
 
-* **Identity is stubbed.** No auth scheme is registered. `AnonymousCurrentUser` is the only `ICurrentUser`. Grep `IDENTITY STUB` / `TODO (identity slice)` before touching auth. See `docs/identity-and-access.md`.
-* **The SPA is built by MSBuild.** `MX.TripSideKick.Web.csproj` targets `EnsureClientDependencies`/`BuildClient`/`PublishClientAssets` run `npm ci` + `npm run build` into `wwwroot/` (git-ignored) and inject the output into publish. `dotnet publish` alone produces a complete artefact. `-p:SkipClientBuild=true` skips it.
-* **DI is validated on build.** `TripCatalogService` needs an `ITripRepository`, so `EmptyTripRepository` is registered when no SQL connection string exists — otherwise Development startup fails validation. Remove it when real SQL access lands.
-* **Health is deliberately shallow.** `/api/health/ready` uses `Predicate = check => check.Tags.Contains("ready")` with nothing registered. Do **not** gate readiness on SQL in this slice.
-* **Warnings are errors** everywhere (`Directory.Build.props`; analyzer severity in `.editorconfig`); **LF line endings** — `dotnet format --verify-no-changes` fails on CRLF, the classic Windows-authored CI break.
-* Test FQNs must avoid the string `IntegrationTests` (the shared CI action filters it out of `dotnet test`); versioning is Nerdbank.GitVersioning (`version.json`), exposed at `/info` and used by the deploy workflows' `wait-for-version` gate.
+Forwarded host is not trusted. Preserve explicit `ForwardedHeaders:KnownProxies`
+and framework loopback defaults; never clear trust allowlists.
 
-## Infrastructure facts
+## Build/delivery
 
-* `terraform/` creates a dev-only Linux B1 App Service plan and consumes `platform-hosting` remote state only for Production's shared plan. Both environments consume `platform-monitoring` for the shared Log Analytics workspace. Environments: `dev`, `prd`. Region: `swedencentral`.
-* **DNS is Cloudflare, not Azure DNS.** No Azure DNS zone, no `DNS Zone Contributor`. `cloudflare_dns_record` resources with zone IDs from the `cloudflare_zone` data source; the token arrives as `TF_VAR_cloudflare_api_token` from the `CLOUDFLARE_API_KEY` environment secret. All records are **DNS-only (grey cloud)** — App Service managed certificates cannot validate or renew through the proxy. See `docs/dns-and-custom-domains.md`.
-* SQL is `GP_S_Gen5_1` serverless with 60-minute auto-pause, Entra-only auth, no SQL logins. Storage has shared keys disabled and public blob access off. Everything runtime-side uses the system-assigned managed identity.
-* No secrets in app settings, ever.
+MSBuild owns the React bundle (`npm ci`/`npm run build`) and publishes generated
+assets. `-p:SkipClientBuild=true` is only for backend-focused validation/tooling.
+EF/container tests have `IntegrationTests` FQNs and are run explicitly in the
+PostgreSQL CI job rather than the shared action's inexpensive test filter.
+Warnings are errors, LF endings required.
 
-See `AGENTS.md` for the canonical build/test/format/terraform/run commands. CI required checks on `main`: `dependabot-policy`, `SonarCloud Code Analysis`, `build-and-test`, `quality / Code Quality`, `devops-secure-scanning / DevOps Secure Scanning`. PR label `deploy-dev` plans+applies+deploys to Development; `run-prd-plan` plans Production.
+Production image publication is exact-source quality-gated and immutable.
+Promotion PRs change digests only, retain exact-head quality/Copilot review
+guards, and do not auto-merge or deploy. Initial zero digests gate activation.
+Legacy apply/deploy triggers are disabled. Terraform/destroy/identity/vault
+resources remain unchanged until coordinated platform retirement; no GCP changes.
+Do not create a hosted dev environment.
 
-## Terraform toolchain
-
-Commit each root's `.terraform-version` and `.terraform.lock.hcl`. Select the exact root CLI pin before invoking Terraform; normal initialization uses `-lockfile=readonly`. Regenerate provider selections only in a reviewed dependency-update PR; never commit state, plans, or `.terraform/`.
+Terraform CLI/provider selections are committed in `.terraform-version` and
+`.terraform.lock.hcl`; normal initialization uses `-lockfile=readonly`.
+Provider regeneration belongs only in reviewed dependency updates; never commit
+state, plans or `.terraform/`.
