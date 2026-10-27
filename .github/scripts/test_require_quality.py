@@ -181,6 +181,18 @@ class PublicationGateTests(unittest.TestCase):
             {**CHECK, "id": 21},
         ])
 
+    def test_same_second_rerun_success_cannot_hide_a_failed_or_pending_peer(self):
+        for field in ("quality", "contract"):
+            for status, conclusion in (("completed", "failure"), ("in_progress", None)):
+                original = QUALITY if field == "quality" else PRODUCER
+                rerun = {**original, "run_attempt": 2}
+                peer = {**original, "id": 100, "status": status, "conclusion": conclusion}
+                with self.subTest(field=field, status=status), self.assertRaises(RuntimeError):
+                    if field == "quality":
+                        self.run_gate(qualities=[rerun, peer])
+                    else:
+                        self.run_gate(producer=rerun, newer_producer=peer)
+
     def test_lower_id_rerun_failure_cannot_be_hidden_by_newer_id_success(self):
         for field in ("contract", "quality"):
             failed = {**(PRODUCER if field == "contract" else QUALITY),

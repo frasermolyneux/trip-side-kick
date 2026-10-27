@@ -24,6 +24,16 @@ def execution_order(run):
     return started, run["run_attempt"], run["id"]
 
 
+def newest_execution(runs):
+    if not runs:
+        return None
+    latest = max(execution_order(run)[0] for run in runs)
+    tied = [run for run in runs if execution_order(run)[0] == latest]
+    # Second-resolution timestamps cannot prove that a tied failure was superseded.
+    unverified = [run for run in tied if run["status"] != "completed" or run["conclusion"] != "success"]
+    return max(unverified or tied, key=execution_order)
+
+
 def complete_workflow_runs(path, start=None, end=None):
     results = []
     window = "" if start is None else (
@@ -61,7 +71,7 @@ def latest_contract_producer(sha, repository, default_branch):
         candidates.append(run)
     if not candidates:
         return None
-    run = max(candidates, key=execution_order)
+    run = newest_execution(candidates)
     jobs = gh(f"repos/{repository}/actions/runs/{run['id']}/jobs?filter=latest&per_page=100")["jobs"]
     exact = [job for job in jobs if job["name"] == f"workload-contract ({sha})"]
     return run, max(exact, key=lambda job: job["id"]) if exact else None
@@ -74,7 +84,7 @@ def latest_quality(sha, repository, default_branch):
              and run.get("event") == "push" and run.get("head_branch") == default_branch
              and run.get("path") == ".github/workflows/codequality.yml"
              and run.get("repository", {}).get("full_name") == repository]
-    return max(exact, key=execution_order) if exact else None
+    return newest_execution(exact)
 
 
 def latest_contract(sha, repository, default_branch):
