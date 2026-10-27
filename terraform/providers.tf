@@ -18,6 +18,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.7"
     }
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 8.8.0"
+    }
     time = {
       source  = "hashicorp/time"
       version = "~> 0.14.0"
@@ -45,6 +49,10 @@ provider "azurerm" {
 }
 
 provider "azuread" {}
+
+provider "google" {
+  project = "gcp-mx-io-travel-itinerary"
+}
 
 # DNS for tripsidekick.app / tripsidekick.net is Cloudflare, not Azure DNS. The scoped API token is
 # injected by the workflow as TF_VAR_cloudflare_api_token from the GitHub environment secret
