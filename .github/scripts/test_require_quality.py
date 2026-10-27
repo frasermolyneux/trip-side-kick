@@ -143,7 +143,7 @@ class PublicationGateTests(unittest.TestCase):
         normalized = {**CHECK, "details_url": f"https://github.com/{REPOSITORY}/runs/20"}
         self.run_gate(checks=[normalized])
         for binding in ("", "trusted-workload-contract:100", "untrusted:99"):
-            with self.subTest(binding=binding), self.assertRaisesRegex(RuntimeError, "Untrusted"):
+            with self.subTest(binding=binding), self.assertRaisesRegex(RuntimeError, "Timed out"):
                 self.run_gate(checks=[{**normalized, "external_id": binding}])
 
     def test_failed_or_wrong_source_quality_and_untrusted_checks_stop_publication(self):
@@ -172,8 +172,14 @@ class PublicationGateTests(unittest.TestCase):
                           newer_producer={**PRODUCER, "id": 100, "conclusion": "failure"})
 
     def test_new_same_app_check_must_reference_the_latest_successful_producer(self):
-        with self.assertRaisesRegex(RuntimeError, "replays an older producer"):
+        with self.assertRaisesRegex(RuntimeError, "Timed out"):
             self.run_gate(newer_producer={**PRODUCER, "id": 100})
+
+    def test_reverse_completion_uses_check_bound_to_newest_trusted_producer(self):
+        self.run_gate(newer_producer={**PRODUCER, "id": 100}, checks=[
+            {**CHECK, "external_id": "trusted-workload-contract:100"},
+            {**CHECK, "id": 21},
+        ])
 
     def test_lower_id_rerun_failure_cannot_be_hidden_by_newer_id_success(self):
         for field in ("contract", "quality"):

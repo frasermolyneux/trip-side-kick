@@ -67,22 +67,6 @@ def latest_contract_producer(sha, repository, default_branch):
     return run, max(exact, key=lambda job: job["id"]) if exact else None
 
 
-def trusted_contract_producer(check, sha, repository, default_branch):
-    producer = latest_contract_producer(sha, repository, default_branch)
-    if producer is None:
-        raise RuntimeError("Trusted workload contract job does not validate this SHA.")
-    run, job = producer
-    if run["status"] != "completed":
-        return False
-    if run["conclusion"] != "success":
-        raise RuntimeError("Trusted workload contract producer did not succeed.")
-    if check.get("external_id") != f"trusted-workload-contract:{run['id']}":
-        raise RuntimeError("Untrusted workload contract check replays an older producer.")
-    if job is None or job["conclusion"] != "success":
-        raise RuntimeError("Trusted workload contract job does not validate this SHA.")
-    return True
-
-
 def latest_quality(sha, repository, default_branch):
     runs = complete_workflow_runs(
         f"repos/{repository}/actions/workflows/codequality.yml/runs?event=push&head_sha={sha}")
@@ -93,7 +77,17 @@ def latest_quality(sha, repository, default_branch):
     return max(exact, key=execution_order) if exact else None
 
 
-def latest_contract(sha, repository):
+def latest_contract(sha, repository, default_branch):
+    producer = latest_contract_producer(sha, repository, default_branch)
+    if producer is None:
+        return None
+    run, job = producer
+    if run["status"] != "completed":
+        return None
+    if run["conclusion"] != "success":
+        raise RuntimeError("Trusted workload contract producer did not succeed.")
+    if job is None or job["conclusion"] != "success":
+        raise RuntimeError("Trusted workload contract job does not validate this SHA.")
     checks = []
     for page in range(1, 21):
         batch = gh(f"repos/{repository}/commits/{sha}/check-runs?check_name=workload-contract&filter=all&per_page=100&page={page}")["check_runs"]
@@ -104,7 +98,8 @@ def latest_contract(sha, repository):
         raise RuntimeError("Too many workload contract results.")
     exact = [check for check in checks if check.get("name") == "workload-contract"
              and check.get("head_sha") == sha and check.get("app", {}).get("id") == ACTIONS_APP_ID
-             and check.get("app", {}).get("slug") == "github-actions"]
+             and check.get("app", {}).get("slug") == "github-actions"
+             and check.get("external_id") == f"trusted-workload-contract:{run['id']}"]
     return max(exact, key=lambda check: check["id"]) if exact else None
 
 
@@ -124,8 +119,8 @@ def wait_for_contract(sha, repository):
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise RuntimeError("Expected a complete source SHA.")
     default_branch = gh(f"repos/{repository}")["default_branch"]
-    wait_for_success(lambda: latest_contract(sha, repository), "Exact-head trusted workload contract",
-                     lambda check: trusted_contract_producer(check, sha, repository, default_branch))
+    wait_for_success(lambda: latest_contract(sha, repository, default_branch),
+                     "Exact-head trusted workload contract")
 
 
 def wait_for_quality(sha, repository):
@@ -134,12 +129,12 @@ def wait_for_quality(sha, repository):
     default_branch = gh(f"repos/{repository}")["default_branch"]
 
     def attest_quality(_):
-        check = latest_contract(sha, repository)
+        check = latest_contract(sha, repository, default_branch)
         if not check or check["status"] != "completed":
             return False
         if check["conclusion"] != "success":
             raise RuntimeError("Exact-head trusted workload contract did not succeed.")
-        return trusted_contract_producer(check, sha, repository, default_branch)
+        return True
 
     wait_for_success(lambda: latest_quality(sha, repository, default_branch),
                      "Exact-head Code Quality and trusted contract", attest_quality)
