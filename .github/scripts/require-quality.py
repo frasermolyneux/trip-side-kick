@@ -13,7 +13,10 @@ CONTRACT_WORKFLOW = ".github/workflows/validate-workload-contract.yml"
 
 
 def gh(path):
-    return json.loads(subprocess.check_output(["gh", "api", path], text=True))
+    environment = os.environ.copy()
+    if environment.get("GH_READ_TOKEN"):
+        environment["GH_TOKEN"] = environment["GH_READ_TOKEN"]
+    return json.loads(subprocess.check_output(["gh", "api", path], text=True, env=environment))
 
 
 def execution_order(run):
@@ -117,14 +120,29 @@ def wait_for_success(fetch, label, attest=None):
     raise RuntimeError(f"Timed out waiting for {label}.")
 
 
+def wait_for_contract(sha, repository):
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise RuntimeError("Expected a complete source SHA.")
+    default_branch = gh(f"repos/{repository}")["default_branch"]
+    wait_for_success(lambda: latest_contract(sha, repository), "Exact-head trusted workload contract",
+                     lambda check: trusted_contract_producer(check, sha, repository, default_branch))
+
+
 def wait_for_quality(sha, repository):
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise RuntimeError("Expected a complete source SHA.")
     default_branch = gh(f"repos/{repository}")["default_branch"]
-    wait_for_success(lambda: latest_quality(sha, repository, default_branch), "Exact-head Code Quality")
-    wait_for_success(lambda: latest_contract(sha, repository), "Exact-head trusted workload contract",
-                     lambda check: trusted_contract_producer(check, sha, repository, default_branch))
-    wait_for_success(lambda: latest_quality(sha, repository, default_branch), "Exact-head Code Quality")
+
+    def attest_quality(_):
+        check = latest_contract(sha, repository)
+        if not check or check["status"] != "completed":
+            return False
+        if check["conclusion"] != "success":
+            raise RuntimeError("Exact-head trusted workload contract did not succeed.")
+        return trusted_contract_producer(check, sha, repository, default_branch)
+
+    wait_for_success(lambda: latest_quality(sha, repository, default_branch),
+                     "Exact-head Code Quality and trusted contract", attest_quality)
 
 
 if __name__ == "__main__":

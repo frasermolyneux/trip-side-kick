@@ -34,12 +34,13 @@ JOB = {"id": 30, "name": f"workload-contract ({SHA})", "status": "completed", "c
 class PublicationGateTests(unittest.TestCase):
     def run_gate(self, qualities=None, checks=None, producer=None, jobs=None, newer_producer=None,
                  producer_pages=None, quality_pages=None, quality_after_contract=None,
-                 partitioned_producers=None):
+                 partitioned_producers=None, contract_failure_during_quality_wait=False):
         quality_reads = 0
         partition_reads = 0
+        contract_reads = 0
 
         def output(command, **_):
-            nonlocal quality_reads, partition_reads
+            nonlocal quality_reads, partition_reads, contract_reads
             path = command[-1]
             if path == f"repos/{REPOSITORY}":
                 result = {"default_branch": "main", "created_at": "2026-10-27T00:00:00Z"}
@@ -48,10 +49,17 @@ class PublicationGateTests(unittest.TestCase):
                 result = {"workflow_runs": [QUALITY] if qualities is None else qualities}
                 if quality_after_contract is not None and quality_reads > 1:
                     result = {"workflow_runs": quality_after_contract}
+                if contract_failure_during_quality_wait and quality_reads == 2:
+                    result = {"workflow_runs": [{**QUALITY, "status": "in_progress", "conclusion": None}]}
                 if quality_pages is not None:
                     result = {"workflow_runs": quality_pages[int(path.rsplit("page=", 1)[1]) - 1]}
             elif "/check-runs?" in path:
+                contract_reads += 1
                 result = {"check_runs": [CHECK] if checks is None else checks}
+                if (quality_after_contract is not None or contract_failure_during_quality_wait) and contract_reads == 1:
+                    result = {"check_runs": [{**CHECK, "status": "in_progress", "conclusion": None}]}
+                if contract_failure_during_quality_wait and quality_reads >= 3:
+                    result = {"check_runs": [{**CHECK, "conclusion": "failure"}]}
             elif "/actions/workflows/validate-workload-contract.yml/runs?" in path:
                 result = {"workflow_runs": [PRODUCER if producer is None else producer]
                           + ([newer_producer] if newer_producer else [])}
@@ -75,8 +83,12 @@ class PublicationGateTests(unittest.TestCase):
         self.run_gate()
 
     def test_quality_failure_during_contract_wait_is_rechecked_before_publication(self):
-        with self.assertRaisesRegex(RuntimeError, "Code Quality did not succeed"):
+        with self.assertRaisesRegex(RuntimeError, "Code Quality.*did not succeed"):
             self.run_gate(quality_after_contract=[{**QUALITY, "conclusion": "failure", "run_attempt": 2}])
+
+    def test_contract_failure_during_quality_wait_cannot_reuse_prior_success(self):
+        with self.assertRaisesRegex(RuntimeError, "trusted workload contract did not succeed"):
+            self.run_gate(contract_failure_during_quality_wait=True)
 
     def test_capped_history_is_partitioned_without_losing_older_failed_reruns(self):
         failed = {**PRODUCER, "run_started_at": "2026-10-27T19:00:00Z",
