@@ -2,6 +2,8 @@ name: Bootstrap and Rotate Runtime Credentials
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "10 6 * * 1"
 
 permissions: {}
 
