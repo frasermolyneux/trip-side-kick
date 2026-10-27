@@ -10,6 +10,11 @@ approved `main`; it never publishes application code or creates Development.
 Review the full plan before dispatch. Retain the legacy resources until the
 server, authentication and isolated restores have passed acceptance.
 
+PR plans are redacted log output only: no binary plan/state artifact is
+published. The shared setup still enforces the committed CLI/provider pins.
+The approved-main apply creates and consumes its saved plan in one isolated
+job, without uploading it for repository-wide download.
+
 After applying the reviewed vault/host permissions, dispatch:
 
 ```powershell
