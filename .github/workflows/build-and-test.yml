@@ -5,6 +5,31 @@ on:
   workflow_dispatch:
 permissions: {}
 jobs:
+  image-input-range:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record complete triggering push range
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          directory = Path("artifacts/publication-inputs")
+          directory.mkdir(parents=True)
+          (directory / "push-range.json").write_text(json.dumps({
+              "before": os.environ["BEFORE_SHA"], "after": os.environ["SOURCE_SHA"]
+          }), encoding="utf-8")
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: image-input-range
+          path: artifacts/publication-inputs/push-range.json
+          if-no-files-found: error
+          retention-days: 1
   build-and-test:
     permissions:
       contents: read
@@ -32,4 +57,3 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/postgres-containers.yml
-    secrets: inherit

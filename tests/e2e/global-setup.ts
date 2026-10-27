@@ -7,7 +7,7 @@ import { ensureAppPublished, ensureDevCertificate, startApp, stopApp, waitForHea
 
 /**
  * Hermetic, self-contained global setup for the whole Playwright suite: no cloud, no real Entra,
- * no external network. Starts an ephemeral SQL Server container, applies EF Core migrations to
+ * no external identity dependency. Starts an ephemeral PostgreSQL container, applies EF Core migrations to
  * it, then starts the real built app configured to use it, with the deterministic test-auth
  * sign-in path opted in (`TestAuth__Enabled=true`) - see docs/testing.md.
  *

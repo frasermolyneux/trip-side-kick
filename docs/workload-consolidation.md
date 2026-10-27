@@ -148,6 +148,10 @@ Production image publication follows successful exact-source Build and Test
 reviewed ACR. Promotion changes only the two digest fields, retains the existing
 stale-source/exact-head Quality/Copilot review guards, and **does not auto-merge**.
 No image publication or promotion workflow deploys or mutates a host.
+The source build records the complete main push range, so multi-commit/rebase
+pushes cannot hide image changes behind a final documentation-only commit.
+Unavailable pre-push history conservatively publishes; digest-only promotions
+still do not cause image-publication loops.
 
 Web images must use `deployment/build_web_image.py`: it computes real NBGV
 assembly/file/informational versions from the checkout and passes them explicitly

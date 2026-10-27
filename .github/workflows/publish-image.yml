@@ -29,15 +29,16 @@ jobs:
           fetch-depth: 0
       - name: Check image inputs
         id: inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          pattern="$(tr -d '\r\n' <.github/image-input-pattern.txt)"
-          if git diff --name-only HEAD^1 HEAD | grep -Eq "$pattern"; then
-            echo "publish=true" >>"$GITHUB_OUTPUT"
-          else
-            echo "publish=false" >>"$GITHUB_OUTPUT"
-          fi
+          gh run download "$PUBLISH_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name image-input-range --dir artifacts/publication-inputs
+          echo "publish=$(python3 .github/scripts/image-inputs.py)" >>"$GITHUB_OUTPUT"
       - name: Require exact-revision quality
         if: steps.inputs.outputs.publish == 'true'
         env:
