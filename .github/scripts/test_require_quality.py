@@ -1,47 +1,122 @@
 import json
-import os
 from pathlib import Path
 import runpy
 import unittest
 from unittest.mock import patch
 
 
-SCRIPT = Path(__file__).with_name("require-quality.py")
+GATE = runpy.run_path(str(Path(__file__).with_name("require-quality.py")))["wait_for_quality"]
 SHA = "a" * 40
+REPOSITORY = "owner/repository"
+QUALITY = {
+    "run_started_at": "2026-10-27T18:00:00Z", "run_attempt": 1,
+    "id": 10, "head_sha": SHA, "event": "push", "head_branch": "main",
+    "path": ".github/workflows/codequality.yml",
+    "repository": {"full_name": REPOSITORY}, "status": "completed", "conclusion": "success",
+}
+CHECK = {
+    "id": 20, "head_sha": SHA, "name": "workload-contract",
+    "app": {"id": 15368, "slug": "github-actions"},
+    "status": "completed", "conclusion": "success",
+    "details_url": f"https://github.com/{REPOSITORY}/actions/runs/99",
+}
+PRODUCER = {
+    "run_started_at": "2026-10-27T18:00:00Z", "run_attempt": 1,
+    "id": 99, "event": "workflow_run", "path": ".github/workflows/validate-workload-contract.yml",
+    "display_title": f"Validate workload contract {SHA}",
+    "head_branch": "main", "repository": {"full_name": REPOSITORY},
+    "status": "completed", "conclusion": "success",
+}
+JOB = {"id": 30, "name": f"workload-contract ({SHA})", "status": "completed", "conclusion": "success"}
 
 
 class PublicationGateTests(unittest.TestCase):
-    def run_gate(self, conclusion="success", app="github-actions", check_sha=SHA, quality_sha=SHA):
+    def run_gate(self, qualities=None, checks=None, producer=None, jobs=None, newer_producer=None,
+                 producer_pages=None, quality_pages=None):
         def output(command, **_):
-            if command[1] == "run":
-                return json.dumps([{"headSha": quality_sha, "status": "completed", "conclusion": "success"}])
-            return json.dumps({"check_runs": [{
-                "id": 1, "head_sha": check_sha, "app": {"slug": app},
-                "status": "completed", "conclusion": conclusion
-            }]})
+            path = command[-1]
+            if path == f"repos/{REPOSITORY}":
+                result = {"default_branch": "main"}
+            elif "/actions/workflows/codequality.yml/runs?" in path:
+                result = {"workflow_runs": [QUALITY] if qualities is None else qualities}
+                if quality_pages is not None:
+                    result = {"workflow_runs": quality_pages[int(path.rsplit("page=", 1)[1]) - 1]}
+            elif "/check-runs?" in path:
+                result = {"check_runs": [CHECK] if checks is None else checks}
+            elif "/actions/workflows/validate-workload-contract.yml/runs?" in path:
+                result = {"workflow_runs": [PRODUCER if producer is None else producer]
+                          + ([newer_producer] if newer_producer else [])}
+                if producer_pages is not None:
+                    result = {"workflow_runs": producer_pages[int(path.rsplit("page=", 1)[1]) - 1]}
+            elif "/actions/runs/99/jobs?" in path or "/actions/runs/100/jobs?" in path:
+                result = {"jobs": [JOB] if jobs is None else jobs}
+            else:
+                self.fail(f"Unexpected API request: {path}")
+            return json.dumps(result)
 
-        with patch.dict(os.environ, {"SOURCE_SHA": SHA, "GITHUB_REPOSITORY": "owner/repository"}), \
-                patch("subprocess.check_output", side_effect=output), patch("time.sleep"):
-            runpy.run_path(str(SCRIPT))
+        with patch("subprocess.check_output", side_effect=output), patch("time.sleep"):
+            GATE(SHA, REPOSITORY)
 
-    def test_exact_quality_and_trusted_contract_allow_publication(self):
+    def test_exact_quality_and_sha_bound_trusted_contract_allow_publication(self):
         self.run_gate()
 
-    def test_failed_contract_blocks_publication(self):
-        with self.assertRaisesRegex(SystemExit, "trusted workload contract did not pass"):
-            self.run_gate(conclusion="failure")
+    def test_failed_or_wrong_source_quality_and_untrusted_checks_stop_publication(self):
+        for variant in (
+            {"qualities": [{**QUALITY, "conclusion": "failure"}]},
+            {"qualities": [{**QUALITY, "head_sha": "b" * 40}]},
+            {"checks": [{**CHECK, "conclusion": "failure"}]},
+            {"checks": [{**CHECK, "head_sha": "b" * 40}]},
+            {"checks": [{**CHECK, "app": {"id": 999, "slug": "github-actions"}}]},
+        ):
+            with self.subTest(variant=variant), self.assertRaises(RuntimeError):
+                self.run_gate(**variant)
 
-    def test_other_revision_contract_cannot_authorize_publication(self):
-        with self.assertRaisesRegex(SystemExit, "Timed out"):
-            self.run_gate(check_sha="b" * 40)
+    def test_same_app_check_cannot_borrow_wrong_workflow_or_other_sha_producer(self):
+        for variant in (
+            {"producer": {**PRODUCER, "path": ".github/workflows/untrusted.yml"}},
+            {"producer": {**PRODUCER, "head_branch": "feature/untrusted"}},
+            {"jobs": [{**JOB, "name": f"workload-contract ({'b' * 40})"}]},
+        ):
+            with self.subTest(variant=variant), self.assertRaises(RuntimeError):
+                self.run_gate(**variant)
 
-    def test_other_application_cannot_spoof_contract_success(self):
-        with self.assertRaisesRegex(SystemExit, "Timed out"):
-            self.run_gate(app="untrusted-application")
+    def test_new_same_app_check_cannot_replay_success_before_newer_producer_failure(self):
+        with self.assertRaisesRegex(RuntimeError, "producer did not succeed"):
+            self.run_gate(checks=[{**CHECK, "id": 200}],
+                          newer_producer={**PRODUCER, "id": 100, "conclusion": "failure"})
 
-    def test_other_revision_quality_cannot_authorize_publication(self):
-        with self.assertRaisesRegex(SystemExit, "Code Quality"):
-            self.run_gate(quality_sha="b" * 40)
+    def test_new_same_app_check_must_reference_the_latest_successful_producer(self):
+        with self.assertRaisesRegex(RuntimeError, "replays an older producer"):
+            self.run_gate(newer_producer={**PRODUCER, "id": 100})
+
+    def test_lower_id_rerun_failure_cannot_be_hidden_by_newer_id_success(self):
+        for field in ("contract", "quality"):
+            failed = {**(PRODUCER if field == "contract" else QUALITY),
+                      "run_started_at": "2026-10-27T19:00:00Z", "run_attempt": 2, "conclusion": "failure"}
+            with self.subTest(field=field), self.assertRaisesRegex(RuntimeError, "did not succeed"):
+                if field == "contract":
+                    self.run_gate(producer=failed, newer_producer={**PRODUCER, "id": 100},
+                                  checks=[{**CHECK, "details_url": CHECK["details_url"].replace("/99", "/100")}])
+                else:
+                    self.run_gate(qualities=[failed, {**QUALITY, "id": 11}])
+
+    def test_latest_failed_rerun_on_later_page_rejects_replayed_success(self):
+        first = [{**PRODUCER, "id": 100}] + [
+            {**PRODUCER, "id": number, "display_title": "Another source"} for number in range(101, 200)
+        ]
+        failed = {**PRODUCER, "run_started_at": "2026-10-27T19:00:00Z",
+                  "run_attempt": 2, "conclusion": "failure"}
+        with self.assertRaisesRegex(RuntimeError, "producer did not succeed"):
+            self.run_gate(producer_pages=[first, [failed]],
+                          checks=[{**CHECK, "details_url": CHECK["details_url"].replace("/99", "/100")}])
+
+    def test_filtered_api_limit_is_not_mistaken_for_complete_history(self):
+        for field in ("quality", "contract"):
+            full = [QUALITY if field == "quality" else PRODUCER] * 100
+            with self.subTest(field=field), self.assertRaisesRegex(RuntimeError, "Too many"):
+                self.run_gate(**{
+                    "quality_pages" if field == "quality" else "producer_pages": [full] * 10 + [[]]
+                })
 
 
 if __name__ == "__main__":
