@@ -19,6 +19,7 @@ CHECK = {
     "app": {"id": 15368, "slug": "github-actions"},
     "status": "completed", "conclusion": "success",
     "details_url": f"https://github.com/{REPOSITORY}/actions/runs/99",
+    "external_id": "trusted-workload-contract:99",
 }
 PRODUCER = {
     "run_started_at": "2026-10-27T18:00:00Z", "run_attempt": 1,
@@ -59,6 +60,13 @@ class PublicationGateTests(unittest.TestCase):
 
     def test_exact_quality_and_sha_bound_trusted_contract_allow_publication(self):
         self.run_gate()
+
+    def test_normalized_display_url_cannot_break_or_replace_explicit_producer_binding(self):
+        normalized = {**CHECK, "details_url": f"https://github.com/{REPOSITORY}/runs/20"}
+        self.run_gate(checks=[normalized])
+        for binding in ("", "trusted-workload-contract:100", "untrusted:99"):
+            with self.subTest(binding=binding), self.assertRaisesRegex(RuntimeError, "Untrusted"):
+                self.run_gate(checks=[{**normalized, "external_id": binding}])
 
     def test_failed_or_wrong_source_quality_and_untrusted_checks_stop_publication(self):
         for variant in (

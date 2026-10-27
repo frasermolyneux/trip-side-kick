@@ -48,10 +48,6 @@ def latest_contract_producer(sha, repository, default_branch):
 
 
 def trusted_contract_producer(check, sha, repository, default_branch):
-    prefix = f"https://github.com/{repository}/actions/runs/"
-    match = re.fullmatch(re.escape(prefix) + r"([1-9][0-9]*)", check.get("details_url", ""))
-    if not match:
-        raise RuntimeError("Untrusted workload contract producer URL.")
     producer = latest_contract_producer(sha, repository, default_branch)
     if producer is None:
         raise RuntimeError("Trusted workload contract job does not validate this SHA.")
@@ -60,7 +56,7 @@ def trusted_contract_producer(check, sha, repository, default_branch):
         return False
     if run["conclusion"] != "success":
         raise RuntimeError("Trusted workload contract producer did not succeed.")
-    if str(run["id"]) != match[1]:
+    if check.get("external_id") != f"trusted-workload-contract:{run['id']}":
         raise RuntimeError("Untrusted workload contract check replays an older producer.")
     if job is None or job["conclusion"] != "success":
         raise RuntimeError("Trusted workload contract job does not validate this SHA.")
