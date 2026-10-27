@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "workloadId": "trip-side-kick",
   "allowedMounts": [
-    {"id": "keyring", "hostPath": "/srv/workloads/trip-side-kick/keys", "sourceType": "directory", "readOnly": false},
+    {"id": "keyring", "hostPath": "/srv/workloads/trip-side-kick/keyring", "sourceType": "directory", "readOnly": false},
     {"id": "documents", "hostPath": "/srv/workloads/trip-side-kick/documents", "sourceType": "directory", "readOnly": false},
     {"id": "postgres", "hostPath": "/srv/workloads/trip-side-kick/postgres", "sourceType": "directory", "readOnly": false}
   ],
@@ -16,5 +16,5 @@
     {"name": "public-proxy", "internetAccess": true, "externalName": "platform-ingress"}
   ],
   "allowedIngress": [],
-  "resourceCeiling": {"cpus": 2, "memoryMb": 1536, "pids": 256}
+  "resourceCeiling": {"cpus": 1, "memoryMb": 768, "pids": 256}
 }

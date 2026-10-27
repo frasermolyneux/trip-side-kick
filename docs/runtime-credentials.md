@@ -27,21 +27,28 @@ does not require opening the default-deny vault to hosted runner addresses.
 The host reads through its exact-vault Arc role and fixed egress allowlist.
 
 The first configuration publication explicitly enables
-`Sql:InitializeOnStartup` for the fresh PostgreSQL schema. After the first
-healthy activation, dispatch `bootstrap-runtime.yml` again to restore the
-reviewed `false` setting. Existing database passwords are never implicitly
+`Sql:InitializeOnStartup` for the fresh PostgreSQL schema. Repeated bootstrap
+runs preserve this pending state, even if host activation has not happened.
+After verifying the actual host's readiness and deployed version, dispatch
+`complete-runtime-bootstrap.yml` to record completion and restore `false`.
+This explicit action changes only configuration, not database or certificate
+credentials. Subsequent bootstrap runs retain the completed state.
+Existing database passwords are never implicitly
 rotated. An unchanged reviewed configuration creates no new secret version.
 Trusted Caddy addresses are resolved and injected only by the host.
 
-Weekly certificate checks renew 180-day Entra certificates within 30 days of
-expiry. Unrelated public keys and unexpired previous certificates are retained;
+Credential and TLS workflows are manual-only during initial rollout. Enable
+their weekly renewal schedules in a reviewed post-acceptance change.
+Certificate checks renew 180-day Entra certificates within 30 days of expiry.
+Unrelated public keys and unexpired previous certificates are retained;
 only this workflow's expired keys are eligible for removal after seven days.
 The independent origin workflow requests 365-day Origin CA certificates for
 the exact brochure/app apex and www hostnames and renews within 30 days. It
 does not modify DNS or routes. A separate exact-zone
 `CLOUDFLARE_ORIGIN_API_TOKEN` is supplied by the workload catalog.
 
-Unexpected ownership, disabled secrets, expiring database passwords or changed
+Missing established credentials, unexpected ownership, disabled secrets,
+expiring database passwords or changed
 certificate bindings stop publication and require explicit recovery. A failed
 bootstrap can leave an unused public certificate; retry safely without
 deleting existing keys. Verify actual browser sign-in/sign-out and user-flow

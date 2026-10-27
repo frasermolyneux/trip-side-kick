@@ -1,5 +1,6 @@
 """Publish runtime credentials without rotating database passwords or storing keys in state."""
 
+import argparse
 import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -161,12 +162,14 @@ def rotate_certificate(workload, vault, app, tenant, token, now):
         if (tags.get("application-id") != app["appId"] or tags.get("application-object-id") != app["id"]
                 or not isinstance(expiry, int) or not tags.get("credential-key-id")):
             raise BootstrapError("Existing certificate has unexpected application/lifecycle metadata.")
-        if expiry > int((now + timedelta(days=30)).timestamp()) and any(
+        if not any(
             entry["keyId"] == tags["credential-key-id"]
             and (entry.get("displayName") or "").startswith(prefix)
             and datetime.fromisoformat(entry["endDateTime"].replace("Z", "+00:00")).timestamp() >= expiry
             for entry in registered
         ):
+            raise BootstrapError("Existing certificate registration changed or was revoked; explicit recovery required.")
+        if expiry > int((now + timedelta(days=30)).timestamp()):
             print("Retained certificate; renewal is not due.")
             return
     with tempfile.TemporaryDirectory(prefix=prefix) as directory:
@@ -205,34 +208,53 @@ def rotate_certificate(workload, vault, app, tenant, token, now):
     print("Published authenticated certificate; unrelated and unexpired public keys retained.")
 
 
-def main():
+def main(*, complete_initialization=False):
     if os.environ.get("GITHUB_REF") != "refs/heads/main":
         raise BootstrapError("Runtime bootstrap is restricted to approved main.")
     workload, vault, app, tenant, token, config = discover()
-    password = metadata(vault, "database-password", token, workload)
     existing = metadata(vault, "runtime-configuration", token, workload)
-    metadata(vault, "client-certificate", token, workload)
-    if password is None:
-        publish(vault, "database-password", token, workload, secrets.token_urlsafe(48))
-        print("Created database password.")
-    elif password["properties"]["attributes"].get("exp") is not None:
-        raise BootstrapError("Database password is expiring; explicit coordinated rotation required.")
-    else:
-        print("Retained database password.")
-    rotate_certificate(workload, vault, app, tenant, token, datetime.now(timezone.utc))
-    if existing is None and "Sql" in config:
-        config["Sql"]["InitializeOnStartup"] = True
+    configuration_tags = {}
+    if "Sql" in config:
+        phase = (existing.get("tags") or {}).get("schema-initialization") if existing else None
+        if existing is not None and phase not in ("pending", "complete"):
+            raise BootstrapError("Existing schema initialization state is unknown; explicit recovery required.")
+        if complete_initialization and existing is None:
+            raise BootstrapError("Initial configuration does not exist; verify initial activation before completion.")
+        phase = "complete" if complete_initialization else (phase or "pending")
+        config["Sql"]["InitializeOnStartup"] = phase == "pending"
+        configuration_tags["schema-initialization"] = phase
+    elif complete_initialization:
+        raise BootstrapError("This runtime does not use explicit SQL schema initialization.")
+    if not complete_initialization:
+        password = metadata(vault, "database-password", token, workload)
+        certificate = metadata(vault, "client-certificate", token, workload)
+        if existing is not None and (password is None or certificate is None):
+            raise BootstrapError("Established runtime credentials are missing; explicit recovery required.")
+        if password is not None and password["properties"]["attributes"].get("exp") is not None:
+            raise BootstrapError("Database password is expiring; explicit coordinated rotation required.")
+        rotate_certificate(workload, vault, app, tenant, token, datetime.now(timezone.utc))
+        if password is None:
+            publish(vault, "database-password", token, workload, secrets.token_urlsafe(48))
+            print("Created database password.")
+        else:
+            print("Retained database password.")
     digest = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
-    if existing is None or (existing.get("tags") or {}).get("configuration-sha256") != digest:
+    configuration_tags["configuration-sha256"] = digest
+    if existing is None or any(
+        (existing.get("tags") or {}).get(key) != value for key, value in configuration_tags.items()
+    ):
         publish(vault, "runtime-configuration", token, workload, json.dumps(config),
-                tags={"configuration-sha256": digest})
+                tags=configuration_tags)
         print("Published reviewed runtime configuration; trusted Caddy addresses are hydrated only on the host.")
     else:
         print("Retained unchanged runtime configuration.")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--complete-initialization", action="store_true")
+    arguments = parser.parse_args()
     try:
-        main()
+        main(complete_initialization=arguments.complete_initialization)
     except BootstrapError as error:
         raise SystemExit(str(error)) from None
