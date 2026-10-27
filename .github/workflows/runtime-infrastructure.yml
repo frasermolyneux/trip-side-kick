@@ -1,0 +1,59 @@
+name: Runtime Infrastructure
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/runtime-infrastructure.yml"
+
+permissions: {}
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: Production
+    concurrency:
+      group: ${{ github.repository }}-prd
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: frasermolyneux/actions/terraform-plan@terraform-plan/v2.0.0
+        with:
+          terraform-folder: terraform
+          terraform-var-file: tfvars/prd.tfvars
+          terraform-backend-file: backends/prd.backend.hcl
+          plan-artifact-name: runtime-terraform-plan-prd
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        env:
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_KEY }}
+
+  apply:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: Production
+    concurrency:
+      group: ${{ github.repository }}-prd
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: frasermolyneux/actions/terraform-plan-and-apply@terraform-plan-and-apply/v2.0.0
+        with:
+          terraform-folder: terraform
+          terraform-var-file: tfvars/prd.tfvars
+          terraform-backend-file: backends/prd.backend.hcl
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        env:
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_KEY }}

@@ -1,0 +1,29 @@
+name: Bootstrap and Rotate Runtime Credentials
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: consolidated-runtime-secrets
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Register, authenticate and publish only reviewed runtime secrets
+        run: python3 .github/scripts/bootstrap_runtime.py
