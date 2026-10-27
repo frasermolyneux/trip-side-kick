@@ -16,6 +16,24 @@ no schedule or automatic triggers. Development destruction is manual-only; its
 capability and Terraform definitions are retained. PR labels cannot re-enable
 legacy deployments.
 
+## Separately reviewed Production DNS cutover
+
+`terraform/tfvars/prd.tfvars` explicitly selects `runtime_origin_ipv4` for the
+constrained host. All four public app/brochure apex and www records become
+proxied A records. `platform-connectivity` retains ownership of both managed
+zones and their strict origin TLS baseline; no zone-wide TLS setting is changed
+by this workload. The host already has separate Origin CA certificates and
+canonical www redirects.
+
+Keep this cutover held until actual off-server database, document and keyring
+restores pass. Real delegated sign-in/sign-out and Trip B2B sign-up remain
+operator acceptance gates before Azure retirement. Azure compute, SQL/storage,
+Entra registration, existing DNS verification and Google ownership are retained.
+Setting `runtime_origin_ipv4` back to null restores DNS-only Azure routing in a
+reviewed rollback; existing managed Azure certificates cannot renew while
+Cloudflare proxying is enabled. Do not treat legacy Azure cleanup as collateral
+to the DNS change.
+
 ## Runtime contract
 
 | Service | UID:GID | Writable mount IDs and paths | Networks |

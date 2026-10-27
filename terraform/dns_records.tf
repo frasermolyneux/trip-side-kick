@@ -1,9 +1,8 @@
 # Cloudflare is authoritative for tripsidekick.app and tripsidekick.net; there is no Azure DNS zone
-# for this workload. Records are created DNS-only (proxied = false) because:
-#   * App Service validates custom hostnames by resolving them directly to Azure, and
-#   * App Service managed certificates cannot be issued or renewed through the Cloudflare proxy.
-# Turning the orange cloud on would move TLS termination to Cloudflare and break managed-certificate
-# renewal, so it stays off unless the workload adopts Cloudflare origin certificates.
+# for this workload. Production explicitly switches to the constrained origin with
+# Cloudflare Origin CA TLS. platform-connectivity owns both zones' strict TLS baseline.
+# Retain Azure verification/bindings/certificates for rollback until separate retirement;
+# managed Azure certificates cannot renew while their records are proxied.
 locals {
   # Cloudflare wants the apex record named after the zone itself; subdomains use the FQDN.
   cloudflare_record_names = {
@@ -27,11 +26,11 @@ resource "cloudflare_dns_record" "web_app" {
 
   zone_id = data.cloudflare_zone.zones[each.value.zone].zone_id
   name    = local.cloudflare_record_names[each.key]
-  type    = "CNAME"
-  ttl     = local.custom_domain_dns_ttl_seconds
-  content = azurerm_linux_web_app.app.default_hostname
-  proxied = false
-  comment = "trip-side-kick ${var.environment} App Service ${each.value.surface} surface"
+  type    = var.runtime_origin_ipv4 == null ? "CNAME" : "A"
+  ttl     = var.runtime_origin_ipv4 == null ? local.custom_domain_dns_ttl_seconds : 1
+  content = var.runtime_origin_ipv4 == null ? azurerm_linux_web_app.app.default_hostname : var.runtime_origin_ipv4
+  proxied = var.runtime_origin_ipv4 != null
+  comment = "trip-side-kick ${var.environment} ${var.runtime_origin_ipv4 == null ? "App Service" : "constrained origin"} ${each.value.surface} surface"
 
   depends_on = [
     cloudflare_dns_record.app_service_verification
