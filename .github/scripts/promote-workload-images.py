@@ -513,21 +513,17 @@ def main() -> None:
         )
         print(f"Closed superseded image promotion pull request #{number}.")
         return
-    base_ref = run(
-        "gh",
+    current = gh_json(
         "pr",
         "view",
         str(number),
         "--repo",
         repository,
         "--json",
-        "baseRefName",
-        "--jq",
-        ".baseRefName",
-        capture=True,
+        "baseRefName,headRefOid",
     )
-    if base_ref != "main":
-        raise RuntimeError("The promotion pull request no longer targets main.")
+    if current != {"baseRefName": "main", "headRefOid": head_sha}:
+        raise RuntimeError("The promotion pull request's exact head or base changed.")
     print(f"Image promotion pull request #{number} passed exact-head quality and review; awaiting manual merge.")
 
 

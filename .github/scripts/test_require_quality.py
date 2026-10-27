@@ -1,8 +1,9 @@
 import json
+import os
 from pathlib import Path
 import runpy
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 
 GATE = runpy.run_path(str(Path(__file__).with_name("require-quality.py")))["wait_for_quality"]
@@ -32,6 +33,46 @@ JOB = {"id": 30, "name": f"workload-contract ({SHA})", "status": "completed", "c
 
 
 class PublicationGateTests(unittest.TestCase):
+    def test_promotion_head_moving_during_contract_wait_prevents_success(self):
+        promotion = runpy.run_path(str(Path(__file__).with_name("promote-workload-images.py")))["main"]
+        head = "b" * 40
+        prefix = "acr7ca0fd3326df.azurecr.io/workloads/trip-side-kick/web@sha256:"
+        before = {"services": [{"name": "trip-side-kick-web", "image": prefix + "1" * 64}]}
+        after = {"services": [{"name": "trip-side-kick-web", "image": prefix + "2" * 64}]}
+
+        def commands(*args, **_):
+            if args[:2] == ("git", "show"):
+                return json.dumps(before if args[2].startswith("origin/main:") else after)
+            if args[:2] == ("git", "diff"):
+                return "workload.json"
+            return "main" if args[:3] == ("gh", "pr", "view") else ""
+
+        def github(*args):
+            if args[:2] == ("pr", "list"):
+                return [{"number": 1, "headRefOid": head, "baseRefName": "main"}]
+            return {"baseRefName": "main", "headRefOid": "c" * 40}
+
+        contract = Mock()
+        replacements = {
+            "run": commands, "gh_json": github, "is_ancestor": lambda *_: True,
+            "has_newer_image_inputs": lambda *_: False,
+            "has_newer_service_images": lambda *_: False,
+            "wait_for_quality": lambda *_: None,
+            "wait_for_pull_request_quality": lambda *_: None,
+            "wait_for_copilot_review": lambda *_: None,
+            "wait_contract": contract,
+        }
+        with patch.dict(promotion.__globals__, replacements), \
+                patch.dict(os.environ, {"GITHUB_REPOSITORY": REPOSITORY}), \
+                patch("sys.argv", ["promote", "--source-sha", SHA,
+                                   "--image-input-pattern", ".",
+                                   "--update", "trip-side-kick-web=" + prefix + "2" * 64]), \
+                patch("builtins.print") as output:
+            with self.assertRaisesRegex(RuntimeError, "exact head or base changed"):
+                promotion()
+            contract.assert_called_once_with(head, REPOSITORY)
+            output.assert_not_called()
+
     def run_gate(self, qualities=None, checks=None, producer=None, jobs=None, newer_producer=None,
                  producer_pages=None, quality_pages=None, quality_after_contract=None,
                  partitioned_producers=None, contract_failure_during_quality_wait=False):
