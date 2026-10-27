@@ -23,7 +23,7 @@ def execution_order(run):
 
 def latest_contract_producer(sha, repository, default_branch):
     candidates = []
-    for page in range(1, 21):
+    for page in range(1, 11):
         runs = gh(
             f"repos/{repository}/actions/workflows/validate-workload-contract.yml/runs"
             f"?event=workflow_run&branch={default_branch}&per_page=100&page={page}"
@@ -69,7 +69,7 @@ def trusted_contract_producer(check, sha, repository, default_branch):
 
 def latest_quality(sha, repository, default_branch):
     runs = []
-    for page in range(1, 21):
+    for page in range(1, 11):
         batch = gh(f"repos/{repository}/actions/workflows/codequality.yml/runs?event=push&head_sha={sha}&per_page=100&page={page}")["workflow_runs"]
         runs.extend(batch)
         if len(batch) < 100:

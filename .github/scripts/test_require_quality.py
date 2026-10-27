@@ -32,13 +32,15 @@ JOB = {"id": 30, "name": f"workload-contract ({SHA})", "status": "completed", "c
 
 class PublicationGateTests(unittest.TestCase):
     def run_gate(self, qualities=None, checks=None, producer=None, jobs=None, newer_producer=None,
-                 producer_pages=None):
+                 producer_pages=None, quality_pages=None):
         def output(command, **_):
             path = command[-1]
             if path == f"repos/{REPOSITORY}":
                 result = {"default_branch": "main"}
             elif "/actions/workflows/codequality.yml/runs?" in path:
                 result = {"workflow_runs": [QUALITY] if qualities is None else qualities}
+                if quality_pages is not None:
+                    result = {"workflow_runs": quality_pages[int(path.rsplit("page=", 1)[1]) - 1]}
             elif "/check-runs?" in path:
                 result = {"check_runs": [CHECK] if checks is None else checks}
             elif "/actions/workflows/validate-workload-contract.yml/runs?" in path:
@@ -107,6 +109,14 @@ class PublicationGateTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "producer did not succeed"):
             self.run_gate(producer_pages=[first, [failed]],
                           checks=[{**CHECK, "details_url": CHECK["details_url"].replace("/99", "/100")}])
+
+    def test_filtered_api_limit_is_not_mistaken_for_complete_history(self):
+        for field in ("quality", "contract"):
+            full = [QUALITY if field == "quality" else PRODUCER] * 100
+            with self.subTest(field=field), self.assertRaisesRegex(RuntimeError, "Too many"):
+                self.run_gate(**{
+                    "quality_pages" if field == "quality" else "producer_pages": [full] * 10 + [[]]
+                })
 
 
 if __name__ == "__main__":
