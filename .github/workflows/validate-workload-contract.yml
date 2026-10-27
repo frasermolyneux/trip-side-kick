@@ -74,5 +74,6 @@ jobs:
           gh api --method POST "repos/${GITHUB_REPOSITORY}/check-runs" \
             -f name=workload-contract -f "head_sha=$SOURCE_SHA" \
             -f status=completed -f "conclusion=$RESULT" \
+            -f "external_id=trusted-workload-contract:${GITHUB_RUN_ID}" \
             -f "details_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
             --silent
