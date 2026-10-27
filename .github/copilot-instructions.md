@@ -51,6 +51,12 @@ EF/container tests have `IntegrationTests` FQNs and are run explicitly in the
 PostgreSQL CI job rather than the shared action's inexpensive test filter.
 Warnings are errors, LF endings required.
 
+Build web images with `python deployment/build_web_image.py --tag <tag>` so real
+NBGV metadata is injected without copying Git history. PR workflows must not
+receive private App credentials. Only the default-branch trusted contract
+workflow may fetch the private compiler; triggering manifest JSON is data only,
+never checked-out/executed PR code.
+
 Production image publication is exact-source quality-gated and immutable.
 Promotion PRs change digests only, retain exact-head quality/Copilot review
 guards, and do not auto-merge or deploy. Initial zero digests gate activation.

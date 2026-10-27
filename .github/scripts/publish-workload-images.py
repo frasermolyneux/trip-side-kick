@@ -2,6 +2,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -63,8 +64,10 @@ for kind in ("web", "postgres"):
         digest = metadata["digest"]
     else:
         target = f"{registry}.azurecr.io/{tag}"
-        dockerfile = "Dockerfile" if kind == "web" else "deployment/postgres.Dockerfile"
-        subprocess.run(["docker", "build", "--file", dockerfile, "--tag", target, "."], check=True)
+        if kind == "web":
+            subprocess.run([sys.executable, "deployment/build_web_image.py", "--tag", target], check=True)
+        else:
+            subprocess.run(["docker", "build", "--file", "deployment/postgres.Dockerfile", "--tag", target, "."], check=True)
         subprocess.run(["docker", "push", target], check=True)
         digest = run("az", "acr", "repository", "show", "--name", registry, "--image", tag,
                      "--query", "digest", "--output", "tsv")

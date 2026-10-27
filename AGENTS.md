@@ -16,7 +16,7 @@ dotnet format src\MX.TripSideKick.slnx --verify-no-changes
 npm ci
 npm run build
 npm run test
-docker build -t tripsidekick-web:ci .
+python deployment\build_web_image.py --tag tripsidekick-web:ci
 docker build -f deployment\postgres.Dockerfile -t tripsidekick-postgres:ci .
 python deployment\test_containers.py
 ```

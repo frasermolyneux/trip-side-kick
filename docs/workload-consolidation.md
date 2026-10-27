@@ -132,7 +132,7 @@ and database readiness/outages.
 dotnet test src\MX.TripSideKick.slnx --filter 'FullyQualifiedName!~IntegrationTests'
 dotnet test src\MX.TripSideKick.slnx --filter 'FullyQualifiedName~IntegrationTests'
 dotnet ef migrations has-pending-model-changes --project src\MX.TripSideKick.Infrastructure --startup-project src\MX.TripSideKick.Web
-docker build -t tripsidekick-web:ci .
+python deployment\build_web_image.py --tag tripsidekick-web:ci
 docker build -f deployment\postgres.Dockerfile -t tripsidekick-postgres:ci .
 python deployment\test_containers.py
 ```
@@ -144,10 +144,24 @@ Build and Test/PR Verify run both hermetic tests and the PostgreSQL/container
 workflow; Code Quality and secure scanning retain existing required check names.
 
 Production image publication follows successful exact-source Build and Test
-**and** Code Quality, and locks source-SHA tags plus digest deletion in the
+**and** Code Quality and the trusted `workload-contract` check, and locks source-SHA tags plus digest deletion in the
 reviewed ACR. Promotion changes only the two digest fields, retains the existing
 stale-source/exact-head Quality/Copilot review guards, and **does not auto-merge**.
 No image publication or promotion workflow deploys or mutates a host.
+
+Web images must use `deployment/build_web_image.py`: it computes real NBGV
+assembly/file/informational versions from the checkout and passes them explicitly
+to the image build. Missing metadata fails the Dockerfile; `.git` never enters
+the image context or runtime.
+
+PR jobs never receive GitHub App credentials. A separate default-branch
+`workflow_run` validates only the triggering revision's `workload.json` as data,
+using the reviewed default-branch policy and pinned private-platform compiler.
+It never checks out or executes PR code, including for forks and Dependabot.
+The read-only private-platform token is restricted to that trusted workflow.
+This workflow becomes active after the source PR merges; initial source review
+uses the recorded local pinned-compiler validation. Repository GitHub App
+enrollment is required before publication; failure cannot silently skip the gate.
 
 Existing Google Maps configuration is unchanged; GCP retention, rotation and
 provider/federation/catalog changes are coordinated elsewhere.

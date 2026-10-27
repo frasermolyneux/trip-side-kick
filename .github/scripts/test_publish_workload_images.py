@@ -45,7 +45,8 @@ class PublicationTests(unittest.TestCase):
         return execute
 
     def builds(self):
-        return [call for call in self.execute.call_args_list if call.args[0][:2] == ["docker", "build"]]
+        return [call for call in self.execute.call_args_list
+                if call.args[0][:2] == ["docker", "build"] or call.args[0][1] == "deployment/build_web_image.py"]
 
     def test_only_missing_manifests_build_both_images(self):
         self.run_publisher(404)

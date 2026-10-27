@@ -1,5 +1,10 @@
 using System.Net;
 
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace MX.TripSideKick.Web.Tests.Health;
 
 /// <summary>
@@ -58,5 +63,25 @@ public sealed class HealthEndpointTests(TripSideKickApplicationFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"buildVersion\"", body, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/api/health/live", HttpStatusCode.OK)]
+    [InlineData("/api/health/ready", HttpStatusCode.ServiceUnavailable)]
+    [InlineData("/api/health", HttpStatusCode.TemporaryRedirect)]
+    [InlineData("/api/health/anything", HttpStatusCode.TemporaryRedirect)]
+    [InlineData("/api/health/live/nested", HttpStatusCode.TemporaryRedirect)]
+    [InlineData("/api/health/live/", HttpStatusCode.TemporaryRedirect)]
+    public async Task Only_exact_health_paths_bypass_https_redirection(string path, HttpStatusCode status)
+    {
+        using var configured = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services.Configure<HttpsRedirectionOptions>(options => options.HttpsPort = 443)));
+        using var client = configured.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri($"http://{TripSideKickApplicationFactory.AppHost}")
+        });
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative));
+        Assert.Equal(status, response.StatusCode);
     }
 }

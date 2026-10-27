@@ -21,7 +21,7 @@ public sealed class SqlServerContainerFixture : IAsyncLifetime
         if (string.IsNullOrWhiteSpace(ConnectionString))
         {
             container = new PostgreSqlBuilder("postgres:18-bookworm")
-                .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("pg_isready", "-U", "postgres"))
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("pg_isready", "-h", "127.0.0.1", "-U", "postgres"))
                 .Build();
             await container.StartAsync().ConfigureAwait(false);
             ConnectionString = container.GetConnectionString();

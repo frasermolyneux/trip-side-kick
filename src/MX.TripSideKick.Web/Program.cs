@@ -233,7 +233,7 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 // that a redirect Location is never built from an unrecognised Host header.
 app.UseHostRouting();
 
-app.UseWhen(context => !context.Request.Path.StartsWithSegments("/api/health"),
+app.UseWhen(context => context.Request.Path != "/api/health/live" && context.Request.Path != "/api/health/ready",
     branch => branch.UseHttpsRedirection());
 
 app.UseMiddleware<SecurityHeadersMiddleware>();

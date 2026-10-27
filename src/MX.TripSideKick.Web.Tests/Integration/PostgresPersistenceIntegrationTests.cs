@@ -10,6 +10,8 @@ using MX.TripSideKick.Domain.Trips;
 using MX.TripSideKick.Infrastructure.Persistence;
 using MX.TripSideKick.Infrastructure.Persistence.Repositories;
 
+using Npgsql;
+
 namespace MX.TripSideKick.Web.Tests.Integration;
 
 [Collection(SqlServerTestGroup.Name)]
@@ -103,6 +105,34 @@ public sealed class PostgresPersistenceIntegrationTests(SqlServerContainerFixtur
         Assert.Single(results, exception => exception is ConcurrencyConflictException);
         seed.ChangeTracker.Clear();
         Assert.Equal(1, await seed.Memberships.CountAsync(member => member.TripId == tripId && member.Role == MembershipRole.Owner));
+    }
+
+    [Theory]
+    [InlineData(PostgresErrorCodes.SerializationFailure, true)]
+    [InlineData(PostgresErrorCodes.DeadlockDetected, true)]
+    [InlineData(PostgresErrorCodes.UniqueViolation, false)]
+    public async Task Wrapped_provider_errors_translate_only_transaction_conflicts_without_replaying(string sqlState, bool conflict)
+    {
+        await using var database = CreateDatabase();
+        var exception = new InvalidOperationException("Transient provider failure",
+            new DbUpdateException("Save failed", new PostgresException("Conflict", "ERROR", "ERROR", sqlState)));
+        var executions = 0;
+        Task ExecuteAsync() => new EfUnitOfWork(database).ExecuteSerializableAsync(_ =>
+        {
+            executions++;
+            return Task.FromException(exception);
+        });
+
+        if (conflict)
+        {
+            await Assert.ThrowsAsync<ConcurrencyConflictException>(ExecuteAsync);
+        }
+        else
+        {
+            Assert.Same(exception, await Assert.ThrowsAsync<InvalidOperationException>(ExecuteAsync));
+        }
+
+        Assert.Equal(1, executions);
     }
 
     [Fact]

@@ -5,8 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using MX.TripSideKick.Application.Common;
 using MX.TripSideKick.Infrastructure.Persistence;
 
-using Npgsql;
-
 namespace MX.TripSideKick.Infrastructure.Persistence.Repositories;
 
 /// <summary>
@@ -70,9 +68,7 @@ public sealed class EfUnitOfWork(TripSideKickDbContext dbContext) : IUnitOfWork
                 await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 return result;
             }
-            catch (Exception exception) when (
-                exception is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected }
-                || exception is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected } })
+            catch (Exception exception) when (SqlExceptionHelpers.IsTransactionConflict(exception))
             {
                 throw new ConcurrencyConflictException("The transaction conflicted with another update. Reload and retry.");
             }
