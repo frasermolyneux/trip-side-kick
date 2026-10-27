@@ -70,6 +70,8 @@ public sealed class TripSideKickApplicationFactory : WebApplicationFactory<Progr
                     ["HostRouting:RedirectWwwToApex"] = "true",
                     ["ApplicationInsights:ClientConnectionString"] = string.Empty,
                     ["BlobStorage:ServiceUri"] = string.Empty,
+                    ["State:KeyRingDirectory"] = Path.Combine(AppContext.BaseDirectory, "state", "keys"),
+                    ["State:DocumentsDirectory"] = Path.Combine(AppContext.BaseDirectory, "state", "documents"),
 
                     // Deterministic, non-secret placeholders so Microsoft.Identity.Web can bind its
                     // options at startup; no real Entra tenant is ever contacted in tests.
@@ -112,4 +114,3 @@ public sealed class TripSideKickApplicationFactory : WebApplicationFactory<Progr
         });
     }
 }
-

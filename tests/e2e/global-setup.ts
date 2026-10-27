@@ -7,7 +7,7 @@ import { ensureAppPublished, ensureDevCertificate, startApp, stopApp, waitForHea
 
 /**
  * Hermetic, self-contained global setup for the whole Playwright suite: no cloud, no real Entra,
- * no external network. Starts an ephemeral SQL Server container, applies EF Core migrations to
+ * no external identity dependency. Starts an ephemeral PostgreSQL container, applies EF Core migrations to
  * it, then starts the real built app configured to use it, with the deterministic test-auth
  * sign-in path opted in (`TestAuth__Enabled=true`) - see docs/testing.md.
  *
@@ -26,7 +26,7 @@ export default async function globalSetup(_config: FullConfig): Promise<() => Pr
   console.log('[global-setup] Restoring .NET solution NuGet packages...');
   await restoreSolution();
 
-  console.log('[global-setup] Starting ephemeral SQL Server container...');
+  console.log('[global-setup] Starting ephemeral PostgreSQL 18 container...');
   const container = await startSqlContainer();
   const connectionString = buildConnectionString(container);
 
@@ -46,7 +46,7 @@ export default async function globalSetup(_config: FullConfig): Promise<() => Pr
   const app = startApp(publishDir, connectionString);
 
   console.log('[global-setup] Waiting for /api/health/live...');
-  await waitForHealthy(HTTP_BASE_URL);
+  await waitForHealthy(HTTP_BASE_URL, 60_000, app);
 
   console.log('[global-setup] Ready.');
 

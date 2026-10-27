@@ -1,0 +1,101 @@
+name: Promote Image
+
+on:
+  workflow_run:
+    workflows:
+      - Publish Image
+    types:
+      - completed
+
+permissions: {}
+
+jobs:
+  discover:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      available: ${{ steps.payload.outputs.available }}
+      source_sha: ${{ steps.payload.outputs.source_sha }}
+    steps:
+      - name: Find promotion payload
+        id: payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          count="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${PUBLISH_RUN_ID}/artifacts?per_page=100" \
+              --jq '[.artifacts[] | select(.name == "image-promotion" and .expired == false)] | length'
+          )"
+          if [ "$count" -gt 1 ]; then
+            echo "Publish run contains multiple promotion payloads." >&2
+            exit 1
+          fi
+          if [ "$count" = "1" ]; then
+            gh run download "$PUBLISH_RUN_ID" --repo "$GITHUB_REPOSITORY" --name image-promotion --dir promotion
+            source_sha="$(jq --exit-status --raw-output '.source_sha' promotion/payload.json)"
+            [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
+            echo "available=true" >>"$GITHUB_OUTPUT"
+            echo "source_sha=$source_sha" >>"$GITHUB_OUTPUT"
+          else
+            echo "available=false" >>"$GITHUB_OUTPUT"
+          fi
+
+  promote:
+    needs: discover
+    if: needs.discover.outputs.available == 'true'
+    concurrency:
+      group: ${{ github.repository }}-promote-image-${{ needs.discover.outputs.source_sha }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+    steps:
+      - name: Create promotion GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PEM }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-actions: write
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out trusted promotion helper
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Download promotion payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: gh run download "$PUBLISH_RUN_ID" --repo "$GITHUB_REPOSITORY" --name image-promotion --dir promotion
+
+      - name: Promote published image
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          image_input_pattern="$(tr -d '\r\n' <.github/image-input-pattern.txt)"
+          test -n "$image_input_pattern"
+          source_sha="$(jq --exit-status --raw-output '.source_sha' promotion/payload.json)"
+          web="$(jq --exit-status --raw-output '.images["trip-side-kick-web"]' promotion/payload.json)"
+          postgres="$(jq --exit-status --raw-output '.images["trip-side-kick-postgres"]' promotion/payload.json)"
+          python .github/scripts/promote-workload-images.py \
+            --source-sha "$source_sha" \
+            --workflow codequality.yml \
+            --image-input-pattern "$image_input_pattern" \
+            --update "trip-side-kick-web=$web" \
+            --update "trip-side-kick-postgres=$postgres"

@@ -25,8 +25,8 @@ public interface IUnitOfWork
     /// default isolation level, two concurrent operations can each read the same
     /// invariant-still-holds snapshot and both commit, violating the invariant (a write-skew
     /// anomaly). Serializable prevents that at the cost of the transaction retrying/failing under
-    /// contention; <see cref="ExecuteAsync{TResult}"/> already retries transient SQL errors, which
-    /// covers the deadlocks/serialization failures this can produce.
+    /// contention. PostgreSQL serialization/deadlock failures become concurrency conflicts;
+    /// callers reload and retry the complete operation rather than replaying partially tracked state.
     /// </summary>
     Task<TResult> ExecuteSerializableAsync<TResult>(
         Func<CancellationToken, Task<TResult>> operation,

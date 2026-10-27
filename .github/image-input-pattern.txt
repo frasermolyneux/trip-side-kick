@@ -1,0 +1,1 @@
+^(src/|Dockerfile$|deployment/|global.json$|Directory.Build.props$|NuGet.Config$|version.json$|\.dockerignore$|\.github/scripts/publish-workload-images.py$)

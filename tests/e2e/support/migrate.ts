@@ -13,8 +13,8 @@ import {
  * Applies EF Core migrations to the given (ephemeral, Testcontainers) database via
  * `dotnet ef database update`. Mirrors `SqlServerContainerFixture`'s
  * `dbContext.Database.MigrateAsync()` approach used by the .NET integration tests - appropriate
- * for a throwaway database, unlike the CI deploy workflows' idempotent-script mechanism (see
- * docs/data-and-persistence.md), which targets a real, persistent Azure SQL database.
+ * for a throwaway database. The persistent constrained runtime instead uses explicitly gated
+ * startup initialization; see docs/workload-consolidation.md.
  *
  * `dotnet ef` performs its own implicit build of the startup project (`MX.TripSideKick.Web`)
  * before it can load the design-time `DbContext` factory. On a fresh checkout, that implicit

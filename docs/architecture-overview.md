@@ -134,3 +134,9 @@ Established now, tightened as features arrive:
 * Forwarded headers are applied **first** in the pipeline — App Service terminates TLS, and both
   HSTS and HTTPS redirection short-circuit unless `Request.Scheme` has already been corrected to
   `https` from `X-Forwarded-Proto`.
+# Current constrained runtime
+
+The current target is a .NET10 Razor/React BFF and private PostgreSQL18 on the
+existing constrained host, with certificate-backed Entra sign-in and persistent
+local keyring/documents. The App Service/Azure SQL topology below is retained
+historical context. See [the authoritative runtime contract](workload-consolidation.md).

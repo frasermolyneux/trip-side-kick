@@ -1,5 +1,12 @@
 # Identity and Access
 
+> **Runtime migration:** the sections below document the retained Azure identity
+> provisioning/history. The constrained runtime now uses the **existing**
+> workforce B2B registration with an explicit base64-PFX certificate secret and
+> persistent local Data Protection keyring, not App Service managed-identity
+> assertions or blob keys. PKCE, cookies, server-side token handling and host
+> isolation remain unchanged. See [runtime contract](workload-consolidation.md).
+
 ## Status: IMPLEMENTED (dev), pending one-time tenant admin actions
 
 Real sign-in is wired end-to-end for the **app** surface: Entra External ID (B2B collaboration +
@@ -160,4 +167,3 @@ These are one-time actions only the Molyneux.IO tenant admin can perform. **Do t
 * **Trip-membership authorization hook-in.** The trips-core slice should authorize collaborator
   access by comparing `ICurrentUser.SubjectId` against a trip's owner/collaborator object ids — never
   by email.
-

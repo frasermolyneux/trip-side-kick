@@ -95,17 +95,21 @@ export function startApp(publishDir: string, sqlConnectionString: string): Child
       'BlobStorage__ServiceUri': ''
     },
     stdio: 'inherit',
-    shell: process.platform === 'win32'
+    shell: false
   });
 
   return child;
 }
 
-export async function waitForHealthy(baseUrl: string, timeoutMs = 60_000): Promise<void> {
+export async function waitForHealthy(baseUrl: string, timeoutMs = 60_000, child?: ChildProcess): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
 
   while (Date.now() < deadline) {
+    if (child && child.exitCode !== null) {
+      throw new Error(`The test application exited before readiness (code ${child.exitCode}).`);
+    }
+
     try {
       // manual redirect: Program.cs's UseHttpsRedirection() 307s every plain-HTTP request
       // (including this liveness probe) to the HTTPS origin, and Node's fetch would otherwise

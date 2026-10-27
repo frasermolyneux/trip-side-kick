@@ -129,3 +129,10 @@ empty or the plan still exists. Re-apply the label (or re-run `deploy-dev.yml`) 
   and in the brochure footer.
 * Test fully-qualified names must **not** contain `IntegrationTests` unless they are genuinely
   expensive — the shared CI action filters that string out of `dotnet test`.
+# Current delivery workflow
+
+Use [the constrained runtime guide](workload-consolidation.md) for PostgreSQL18
+local development, CI and immutable image promotion. Hosted dev and automatic/
+scheduled Azure deployment are disabled; legacy `deploy-dev` PR labels no longer
+apply or deploy anything. Terraform destroy/identity/vault definitions remain for
+coordinated retirement. Azure delivery descriptions below are historical only.

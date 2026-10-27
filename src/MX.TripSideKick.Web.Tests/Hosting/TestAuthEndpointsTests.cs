@@ -47,8 +47,10 @@ public sealed class TestAuthEndpointsTests : IClassFixture<TripSideKickApplicati
         Assert.Contains("\"isAuthenticated\":false", me, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public async Task Signin_endpoint_is_unreachable_outside_Development_even_when_enabled()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("production-instance")]
+    public async Task Signin_endpoint_is_unreachable_outside_Development_even_when_enabled(string? instanceId)
     {
         using var productionFactory = factory.WithWebHostBuilder(builder =>
         {
@@ -56,7 +58,12 @@ public sealed class TestAuthEndpointsTests : IClassFixture<TripSideKickApplicati
             // there even if TestAuth:Enabled were somehow set is the point of this test.
             builder.UseEnvironment(Environments.Production);
             builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["TestAuth:Enabled"] = "true" }));
+                new Dictionary<string, string?>
+                {
+                    ["TestAuth:Enabled"] = "true",
+                    ["WEBSITE_INSTANCE_ID"] = instanceId,
+                    ["Sql:ConnectionString"] = "Host=127.0.0.1;Database=not_connected;Username=test"
+                }));
         });
 
         using var client = productionFactory.CreateClient(new WebApplicationFactoryClientOptions

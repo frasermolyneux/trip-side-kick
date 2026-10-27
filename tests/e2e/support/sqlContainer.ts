@@ -2,34 +2,20 @@ import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainer
 
 import { SQL_DATABASE_NAME, SQL_SA_PASSWORD } from './env.ts';
 
-/**
- * Starts an ephemeral SQL Server 2022 container mirroring `docker-compose.yml`'s image and
- * credentials (this harness never touches Azure SQL - see docs/testing.md). The container starts
- * with the default `master` database; migrations (see `migrate.ts`) create
- * `TripSideKickE2E` via EF Core's own `CREATE DATABASE`-on-migrate behaviour.
- */
+/** Disposable PostgreSQL 18 instance, shared by this single-worker browser run only. */
 export async function startSqlContainer(): Promise<StartedTestContainer> {
-  const container = await new GenericContainer('mcr.microsoft.com/mssql/server:2022-latest')
+  return new GenericContainer('postgres:18-bookworm')
     .withEnvironment({
-      ACCEPT_EULA: 'Y',
-      MSSQL_SA_PASSWORD: SQL_SA_PASSWORD,
-      MSSQL_PID: 'Developer'
+      POSTGRES_USER: 'tripsidekick',
+      POSTGRES_DB: SQL_DATABASE_NAME,
+      POSTGRES_PASSWORD: SQL_SA_PASSWORD
     })
-    .withExposedPorts(1433)
-    .withWaitStrategy(Wait.forLogMessage(/SQL Server is now ready for client connections/i))
-    .withStartupTimeout(180_000)
+    .withExposedPorts(5432)
+    .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2))
+    .withStartupTimeout(120_000)
     .start();
-
-  return container;
 }
 
-/** Builds the connection string for the master-scoped admin connection used by migrations. */
 export function buildConnectionString(container: StartedTestContainer): string {
-  const host = container.getHost();
-  const port = container.getMappedPort(1433);
-
-  return (
-    `Server=${host},${port};Database=${SQL_DATABASE_NAME};User Id=sa;Password=${SQL_SA_PASSWORD};` +
-    'TrustServerCertificate=true;Encrypt=true;'
-  );
+  return `Host=${container.getHost()};Port=${container.getMappedPort(5432)};Database=${SQL_DATABASE_NAME};Username=tripsidekick;Password=${SQL_SA_PASSWORD};GSS Encryption Mode=Disable;SSL Mode=Disable`;
 }

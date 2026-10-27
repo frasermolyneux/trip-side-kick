@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "workloadId": "trip-side-kick",
+  "allowedMounts": [
+    {"id": "keyring", "hostPath": "/srv/workloads/trip-side-kick/keys", "sourceType": "directory", "readOnly": false},
+    {"id": "documents", "hostPath": "/srv/workloads/trip-side-kick/documents", "sourceType": "directory", "readOnly": false},
+    {"id": "postgres", "hostPath": "/srv/workloads/trip-side-kick/postgres", "sourceType": "directory", "readOnly": false}
+  ],
+  "allowedSecrets": [
+    {"id": "runtime-configuration", "hostPath": "/etc/platform-workloads/trip-side-kick/runtime-configuration", "vaultName": "kv-31aac1a62737", "vaultSecret": "runtime-configuration", "groupId": 1654, "mode": "0640"},
+    {"id": "client-certificate", "hostPath": "/etc/platform-workloads/trip-side-kick/client-certificate", "vaultName": "kv-31aac1a62737", "vaultSecret": "client-certificate", "groupId": 1654, "mode": "0640"},
+    {"id": "database-password", "hostPath": "/etc/platform-workloads/trip-side-kick/database-password", "vaultName": "kv-31aac1a62737", "vaultSecret": "database-password", "groupId": 1654, "mode": "0640"}
+  ],
+  "allowedNetworks": [
+    {"name": "database", "internetAccess": false},
+    {"name": "public-proxy", "internetAccess": true, "externalName": "platform-ingress"}
+  ],
+  "allowedIngress": [],
+  "resourceCeiling": {"cpus": 2, "memoryMb": 1536, "pids": 256}
+}
