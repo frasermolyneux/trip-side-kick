@@ -4,6 +4,9 @@ location    = "swedencentral"
 
 subscription_id = "903b6685-c12a-4703-ac54-7ec1ff15ca43"
 
+runtime_host_principal_id = "cecfaca8-1076-4439-8b0e-7da8b82c2600"
+runtime_host_ipv4_cidrs   = ["5.196.80.194/32"]
+
 platform_monitoring_state = {
   resource_group_name  = "rg-tf-platform-monitoring-prd-uksouth-01"
   storage_account_name = "sa74f04c5f984e"
