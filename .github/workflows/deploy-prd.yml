@@ -21,6 +21,7 @@ jobs:
     outputs:
       src: ${{ steps.changes.outputs.src }}
       terraform: ${{ steps.changes.outputs.terraform }}
+      workload: ${{ steps.changes.outputs.workload }}
     steps:
       - id: changes
         uses: frasermolyneux/actions/detect-changes@detect-changes/v1.0
@@ -28,9 +29,12 @@ jobs:
           filters: |
             src:src/**
             terraform:terraform/**
-
+            workload:src/**,terraform/**
   terraform-state-check-dev:
-    if: github.event_name != 'schedule'
+    needs: [detect-changes]
+    if: |
+      (github.event_name != 'schedule') &&
+      (github.event_name != 'push' || needs.detect-changes.outputs.workload == 'true')
     permissions:
       contents: read
       id-token: write
@@ -57,7 +61,8 @@ jobs:
       - detect-changes
       - terraform-state-check-dev
     if: |
-      !failure() && !cancelled() && (needs.detect-changes.outputs.src == 'true' || needs.terraform-state-check-dev.outputs.state_tainted == 'true')
+      (!failure() && !cancelled() && (needs.detect-changes.outputs.src == 'true' || needs.terraform-state-check-dev.outputs.state_tainted == 'true')) &&
+      (github.event_name != 'push' || needs.detect-changes.outputs.workload == 'true')
     permissions:
       contents: read
       id-token: write
@@ -94,7 +99,9 @@ jobs:
           skip-nuget-artifact-upload: "true"
 
   terraform-plan-and-apply-dev:
-    if: github.event_name != 'schedule'
+    if: |
+      (github.event_name != 'schedule') &&
+      (github.event_name != 'push' || needs.detect-changes.outputs.workload == 'true')
     permissions:
       contents: read
       id-token: write
@@ -201,7 +208,8 @@ jobs:
 
   app-service-deploy-dev:
     if: |
-      !failure() && !cancelled() && github.event_name != 'schedule' && (needs.detect-changes.outputs.src == 'true' || needs.terraform-state-check-dev.outputs.state_tainted == 'true')
+      (!failure() && !cancelled() && github.event_name != 'schedule' && (needs.detect-changes.outputs.src == 'true' || needs.terraform-state-check-dev.outputs.state_tainted == 'true')) &&
+      (github.event_name != 'push' || needs.detect-changes.outputs.workload == 'true')
     permissions:
       contents: read
       id-token: write
@@ -232,7 +240,8 @@ jobs:
 
   terraform-plan-and-apply-prd:
     if: |
-      !failure() && !cancelled() && (needs.terraform-plan-and-apply-dev.result == 'success' || github.event_name == 'schedule')
+      (!failure() && !cancelled() && (needs.terraform-plan-and-apply-dev.result == 'success' || github.event_name == 'schedule')) &&
+      (github.event_name != 'push' || needs.detect-changes.outputs.workload == 'true')
     permissions:
       contents: read
       id-token: write
@@ -341,7 +350,8 @@ jobs:
 
   app-service-deploy-prd:
     if: |
-      !failure() && !cancelled() && needs.terraform-plan-and-apply-prd.result == 'success' && needs.detect-changes.outputs.src == 'true'
+      (!failure() && !cancelled() && needs.terraform-plan-and-apply-prd.result == 'success' && needs.detect-changes.outputs.src == 'true') &&
+      (github.event_name != 'push' || needs.detect-changes.outputs.workload == 'true')
     permissions:
       contents: read
       id-token: write

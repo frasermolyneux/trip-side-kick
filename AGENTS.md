@@ -46,3 +46,6 @@ Run only the block(s) your change touches. LF endings only (`.gitattributes` / `
 - ❌ Commit `src/MX.TripSideKick.Web/wwwroot/` (generated, git-ignored) — brochure assets belong in `SiteAssets/`.
 - ❌ Hand-edit `ClientApp/src/api/generated/schema.ts` — regenerate via `npm run generate-api`.
 - ❌ Log or trace PII: trip content, document contents, booking references, emails, display names.
+
+
+CI-only main pushes run change detection but skip cloud/backend deployment jobs. Automatic deployment requires a change to the workload inputs already declared by the deployment filters; scheduled maintenance and explicit workflow dispatch retain their existing behavior. A deployment-workflow-only change requires explicit dispatch to exercise cloud operations.
