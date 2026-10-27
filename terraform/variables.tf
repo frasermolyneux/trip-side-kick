@@ -64,6 +64,19 @@ variable "cloudflare_api_token" {
   sensitive   = true
 }
 
+variable "runtime_origin_ipv4" {
+  description = "Explicit Production DNS cutover to the constrained origin; null preserves Azure DNS routing for rollback."
+  type        = string
+  default     = null
+
+  validation {
+    condition = var.runtime_origin_ipv4 == null || (
+      var.environment == "prd" && can(cidrnetmask("${var.runtime_origin_ipv4}/32"))
+    )
+    error_message = "A constrained origin must be an IPv4 address and may only be set for Production."
+  }
+}
+
 variable "custom_domains" {
   description = <<-EOT
     Public hostnames bound to the App Service, keyed by a stable identifier.
