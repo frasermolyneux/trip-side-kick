@@ -76,6 +76,13 @@ is a database owner, not a superuser, role creator or replication user. Bootstra
 reuses the password secret but does not permit remote administrative login.
 Password rotation is a separate operator action, never an application deployment.
 
+The protected main-only credential and Origin TLS workflows check weekly on
+Monday at 06:10 and 06:25 UTC respectively, with manual dispatch retained.
+Certificates renew only within 30 days of expiry. Existing database passwords,
+completed schema-initialization state and unrelated/unexpired Entra credentials
+are retained; missing established credentials fail closed rather than resetting
+the runtime. These jobs do not deploy images or retire Azure resources.
+
 The runtime adapter must populate `ForwardedHeaders:KnownProxies` with the exact
 Caddy IP. Existing framework loopback trust remains; no proxy/network allowlists
 are cleared, forwarded host is never trusted, and forwarding is limited to one hop.
