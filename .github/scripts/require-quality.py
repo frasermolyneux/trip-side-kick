@@ -1,7 +1,7 @@
 """Fail closed unless reviewed workflow producers validated this exact source."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import os
 import re
 import subprocess
@@ -21,24 +21,41 @@ def execution_order(run):
     return started, run["run_attempt"], run["id"]
 
 
+def complete_workflow_runs(path, start=None, end=None):
+    results = []
+    window = "" if start is None else (
+        f"&created={start:%Y-%m-%dT%H:%M:%SZ}..{end:%Y-%m-%dT%H:%M:%SZ}")
+    for page in range(1, 11):
+        response = gh(f"{path}{window}&per_page=100&page={page}")
+        if response.get("total_count", 0) >= 1000:
+            break
+        batch = response["workflow_runs"]
+        results.extend(batch)
+        if len(batch) < 100:
+            return results
+    if start is None:
+        repository = gh(path.split("/actions/", 1)[0])
+        start = datetime.fromisoformat(repository["created_at"].replace("Z", "+00:00"))
+        end = datetime.now(timezone.utc).replace(microsecond=0)
+    if (end - start).total_seconds() < 1:
+        raise RuntimeError("Too many workflow producers in one creation-time second.")
+    middle = start + timedelta(seconds=int((end - start).total_seconds()) // 2)
+    return (complete_workflow_runs(path, start, middle)
+            + complete_workflow_runs(path, middle + timedelta(seconds=1), end))
+
+
 def latest_contract_producer(sha, repository, default_branch):
     candidates = []
-    for page in range(1, 11):
-        runs = gh(
-            f"repos/{repository}/actions/workflows/validate-workload-contract.yml/runs"
-            f"?event=workflow_run&branch={default_branch}&per_page=100&page={page}"
-        )["workflow_runs"]
-        for run in sorted(runs, key=lambda entry: entry["id"], reverse=True):
-            if (run.get("event") != "workflow_run" or run.get("path") != CONTRACT_WORKFLOW
-                    or run.get("head_branch") != default_branch
-                    or run.get("display_title") != f"Validate workload contract {sha}"
-                    or run.get("repository", {}).get("full_name") != repository):
-                continue
-            candidates.append(run)
-        if len(runs) < 100:
-            break
-    else:
-        raise RuntimeError("Too many trusted workload contract producers.")
+    runs = complete_workflow_runs(
+        f"repos/{repository}/actions/workflows/validate-workload-contract.yml/runs"
+        f"?event=workflow_run&branch={default_branch}")
+    for run in runs:
+        if (run.get("event") != "workflow_run" or run.get("path") != CONTRACT_WORKFLOW
+                or run.get("head_branch") != default_branch
+                or run.get("display_title") != f"Validate workload contract {sha}"
+                or run.get("repository", {}).get("full_name") != repository):
+            continue
+        candidates.append(run)
     if not candidates:
         return None
     run = max(candidates, key=execution_order)
@@ -64,14 +81,8 @@ def trusted_contract_producer(check, sha, repository, default_branch):
 
 
 def latest_quality(sha, repository, default_branch):
-    runs = []
-    for page in range(1, 11):
-        batch = gh(f"repos/{repository}/actions/workflows/codequality.yml/runs?event=push&head_sha={sha}&per_page=100&page={page}")["workflow_runs"]
-        runs.extend(batch)
-        if len(batch) < 100:
-            break
-    else:
-        raise RuntimeError("Too many Code Quality producers.")
+    runs = complete_workflow_runs(
+        f"repos/{repository}/actions/workflows/codequality.yml/runs?event=push&head_sha={sha}")
     exact = [run for run in runs if run["head_sha"] == sha
              and run.get("event") == "push" and run.get("head_branch") == default_branch
              and run.get("path") == ".github/workflows/codequality.yml"
@@ -113,6 +124,7 @@ def wait_for_quality(sha, repository):
     wait_for_success(lambda: latest_quality(sha, repository, default_branch), "Exact-head Code Quality")
     wait_for_success(lambda: latest_contract(sha, repository), "Exact-head trusted workload contract",
                      lambda check: trusted_contract_producer(check, sha, repository, default_branch))
+    wait_for_success(lambda: latest_quality(sha, repository, default_branch), "Exact-head Code Quality")
 
 
 if __name__ == "__main__":

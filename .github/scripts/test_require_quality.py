@@ -33,13 +33,21 @@ JOB = {"id": 30, "name": f"workload-contract ({SHA})", "status": "completed", "c
 
 class PublicationGateTests(unittest.TestCase):
     def run_gate(self, qualities=None, checks=None, producer=None, jobs=None, newer_producer=None,
-                 producer_pages=None, quality_pages=None):
+                 producer_pages=None, quality_pages=None, quality_after_contract=None,
+                 partitioned_producers=None):
+        quality_reads = 0
+        partition_reads = 0
+
         def output(command, **_):
+            nonlocal quality_reads, partition_reads
             path = command[-1]
             if path == f"repos/{REPOSITORY}":
-                result = {"default_branch": "main"}
+                result = {"default_branch": "main", "created_at": "2026-10-27T00:00:00Z"}
             elif "/actions/workflows/codequality.yml/runs?" in path:
+                quality_reads += 1
                 result = {"workflow_runs": [QUALITY] if qualities is None else qualities}
+                if quality_after_contract is not None and quality_reads > 1:
+                    result = {"workflow_runs": quality_after_contract}
                 if quality_pages is not None:
                     result = {"workflow_runs": quality_pages[int(path.rsplit("page=", 1)[1]) - 1]}
             elif "/check-runs?" in path:
@@ -49,6 +57,11 @@ class PublicationGateTests(unittest.TestCase):
                           + ([newer_producer] if newer_producer else [])}
                 if producer_pages is not None:
                     result = {"workflow_runs": producer_pages[int(path.rsplit("page=", 1)[1]) - 1]}
+                if partitioned_producers is not None:
+                    result = {"workflow_runs": [], "total_count": 1000}
+                    if "&created=" in path:
+                        result = {"workflow_runs": partitioned_producers[partition_reads]}
+                        partition_reads += 1
             elif "/actions/runs/99/jobs?" in path or "/actions/runs/100/jobs?" in path:
                 result = {"jobs": [JOB] if jobs is None else jobs}
             else:
@@ -60,6 +73,18 @@ class PublicationGateTests(unittest.TestCase):
 
     def test_exact_quality_and_sha_bound_trusted_contract_allow_publication(self):
         self.run_gate()
+
+    def test_quality_failure_during_contract_wait_is_rechecked_before_publication(self):
+        with self.assertRaisesRegex(RuntimeError, "Code Quality did not succeed"):
+            self.run_gate(quality_after_contract=[{**QUALITY, "conclusion": "failure", "run_attempt": 2}])
+
+    def test_capped_history_is_partitioned_without_losing_older_failed_reruns(self):
+        failed = {**PRODUCER, "run_started_at": "2026-10-27T19:00:00Z",
+                  "run_attempt": 2, "conclusion": "failure"}
+        with self.assertRaisesRegex(RuntimeError, "producer did not succeed"):
+            self.run_gate(partitioned_producers=[[failed], [{**PRODUCER, "id": 100}]])
+        self.run_gate(partitioned_producers=[
+            [{**PRODUCER, "display_title": "Another source"}], [PRODUCER]])
 
     def test_normalized_display_url_cannot_break_or_replace_explicit_producer_binding(self):
         normalized = {**CHECK, "details_url": f"https://github.com/{REPOSITORY}/runs/20"}
