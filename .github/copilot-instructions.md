@@ -60,9 +60,12 @@ never checked-out/executed PR code.
 Production image publication is exact-source quality-gated and immutable.
 Promotion PRs change digests only, retain exact-head quality/Copilot review
 guards, and do not auto-merge or deploy. Initial zero digests gate activation.
-Legacy apply/deploy triggers are disabled. Terraform/destroy/identity/vault
-resources remain unchanged until coordinated platform retirement; no GCP changes.
-Do not create a hosted dev environment.
+Legacy apply/deploy triggers are disabled. Production-only Terraform retains
+protected identity/vault, live DNS and Google APIs/key after coordinated Azure
+retirement. No hosted dev environment or arbitrary GCP foundation changes.
+The reviewed main-only `Retire Travel Google Federation` workflow may remove only
+retired Travel repository trust after its owned stacks are destroyed; it must
+preserve Trip/platform trust, unrelated IAM, project, billing, APIs and all keys.
 
 Terraform CLI/provider selections are committed in `.terraform-version` and
 `.terraform.lock.hcl`; normal initialization uses `-lockfile=readonly`.

@@ -34,6 +34,17 @@ and protected Google APIs/replacement key. Runtime Infrastructure remains the
 supported full-plan/manual-apply path. No container image or live database is
 changed by this cleanup.
 
+The shared Google project and billing foundation are externally retained, not
+owned by Travel's application Terraform or the platform workload catalog.
+After both Travel owned-stack destroys succeed, explicitly dispatch the
+main-only **Retire Travel Google Federation** workflow from this retained
+repository. It checks the exact audited provider/issuer/mapping/conditions,
+healthy project/billing/APIs and replacement Trip trust before any write.
+It removes only the retired Travel IAM member and provider condition, using
+the current IAM etag and preserving unrelated bindings. Idempotent retries
+retain Trip/platform access even after a partial update. It never mutates
+project, billing, API enablement or any API key.
+
 ## Runtime contract
 
 | Service | UID:GID | Writable mount IDs and paths | Networks |
