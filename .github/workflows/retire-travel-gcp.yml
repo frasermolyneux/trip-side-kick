@@ -7,12 +7,6 @@ on:
       - ".github/scripts/test_retire_travel_gcp.py"
       - ".github/workflows/retire-travel-gcp.yml"
   workflow_dispatch:
-    inputs:
-      confirm_owned_stacks_destroyed:
-        description: "Travel Development and Production destroys have completed"
-        required: true
-        type: boolean
-        default: false
 
 permissions: {}
 
@@ -27,7 +21,8 @@ jobs:
       - run: python3 -m unittest discover -s .github/scripts -p test_retire_travel_gcp.py -v
 
   retire:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm_owned_stacks_destroyed
+    name: Revoke Travel trust after both owned-stack destroys
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment: Production
     runs-on: ubuntu-latest
     timeout-minutes: 10
