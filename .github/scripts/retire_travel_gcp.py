@@ -30,10 +30,14 @@ REPOSITORY = "frasermolyneux/travel-itinerary"
 GUARDED_RETIREMENT = "34c7b27ef4d5c594c97885d168bca61c8a154d85"
 
 
+class GuardFailure(ValueError):
+    """An authored prerequisite message safe to emit without service output."""
+
+
 def github(path):
     token = os.environ.get("GH_TOKEN")
     if not token:
-        raise ValueError("Read-only retirement evidence access is required.")
+        raise GuardFailure("Read-only retirement evidence access is required.")
     request = Request(
         f"https://api.github.com/repos/{REPOSITORY}/{path}",
         headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
@@ -42,7 +46,7 @@ def github(path):
         with urlopen(request, timeout=30) as response:
             return json.load(response)
     except Exception:
-        raise RuntimeError("Retirement evidence could not be verified; output withheld.") from None
+        raise GuardFailure("Retirement evidence could not be verified; output withheld.") from None
 
 
 def validate_retirements():
@@ -79,7 +83,7 @@ def validate_retirements():
                 environments.add(environment)
         if environments == {"Development", "Production"}:
             return
-    raise ValueError("Both guarded Travel destroys and empty inventories must succeed first.")
+    raise GuardFailure("Both guarded Travel destroys and empty inventories must succeed first.")
 
 
 def validate_provider(provider):
@@ -87,7 +91,7 @@ def validate_provider(provider):
             or provider.get("oidc", {}).get("issuerUri") != "https://token.actions.githubusercontent.com"
             or provider.get("attributeMapping") != MAPPING
             or provider.get("attributeCondition") not in (OLD, DESIRED)):
-        raise ValueError("Federation differs from the reviewed retirement contract.")
+        raise GuardFailure("Federation differs from the reviewed retirement contract.")
 
 
 def retired_policy(policy):
@@ -96,7 +100,7 @@ def retired_policy(policy):
         and "condition" not in entry and TRIP in entry.get("members", [])
         for entry in policy.get("bindings", [])
     ):
-        raise ValueError("Replacement repository trust is missing.")
+        raise GuardFailure("Replacement repository trust is missing.")
     desired = copy.deepcopy(policy)
     desired["bindings"] = [
         {**entry, "members": [member for member in entry["members"] if member != TRAVEL]}
@@ -112,7 +116,11 @@ def gcloud(*arguments):
         capture_output=True, text=True, check=False,
     )
     if result.returncode:
-        raise RuntimeError("Google operation failed; diagnostic output withheld.")
+        length = (4 if arguments[:2] == ("iam", "workload-identity-pools")
+                  else 3 if arguments[0] in ("iam", "billing") else 2)
+        operation = " ".join(arguments[:length])
+        category = "permission denied" if "PERMISSION_DENIED" in result.stderr else "failed"
+        raise GuardFailure(f"Google {operation} {category}; diagnostic output withheld.")
     return json.loads(result.stdout) if result.stdout.strip() else None
 
 
@@ -129,7 +137,7 @@ def retained():
     if (str(project.get("projectNumber")) != NUMBER or project.get("lifecycleState") != "ACTIVE"
             or billing.get("billingEnabled") is not True
             or not {"maps-backend.googleapis.com", "places.googleapis.com"} <= enabled):
-        raise ValueError("Retained project, billing or APIs are not healthy.")
+        raise GuardFailure("Retained project, billing or APIs are not healthy.")
     return billing["billingAccountName"]
 
 
@@ -138,8 +146,9 @@ def main():
             or os.environ.get("CONFIGURED_PROJECT") != PROJECT
             or os.environ.get("CONFIGURED_PROVIDER") != PROVIDER
             or os.environ.get("CONFIGURED_ACCOUNT") != ACCOUNT):
-        raise ValueError("Retirement requires the reviewed main/project/account.")
+        raise GuardFailure("Retirement requires the reviewed main/project/account.")
     validate_retirements()
+    print("Verified both actual guarded Travel destroys and empty inventories.", flush=True)
     billing = retained()
     before = provider()
     validate_provider(before)
@@ -161,12 +170,14 @@ def main():
     policy = gcloud("iam", "service-accounts", "get-iam-policy", ACCOUNT, f"--project={PROJECT}")
     if (after["attributeCondition"] != DESIRED or retired_policy(policy) != policy
             or retained() != billing):
-        raise ValueError("Retirement verification failed.")
+        raise GuardFailure("Retirement verification failed.")
     print("Verified retained project/billing/APIs and Trip trust; retired only Travel federation.")
 
 
 if __name__ == "__main__":
     try:
         main()
+    except GuardFailure as error:
+        raise SystemExit(str(error)) from None
     except (ValueError, RuntimeError, KeyError, TypeError):
         raise SystemExit("Google federation retirement stopped; output withheld. Review before retrying.") from None

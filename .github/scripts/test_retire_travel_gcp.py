@@ -8,6 +8,23 @@ import retire_travel_gcp as retirement
 
 
 class RetirementTests(unittest.TestCase):
+    def test_google_failure_identifies_only_operation_and_withholds_raw_diagnostics(self):
+        for operation in (
+            ("projects", "describe", retirement.PROJECT),
+            ("billing", "projects", "describe", retirement.PROJECT),
+            ("iam", "service-accounts", "set-iam-policy", retirement.ACCOUNT, "private-policy.json"),
+            ("iam", "workload-identity-pools", "providers", "update-oidc", "github-provider"),
+        ):
+            result = mock.Mock(returncode=1, stderr="PERMISSION_DENIED private-canary", stdout="")
+            with self.subTest(operation=operation), mock.patch.object(
+                    retirement.subprocess, "run", return_value=result):
+                with self.assertRaises(retirement.GuardFailure) as failure:
+                    retirement.gcloud(*operation)
+                self.assertIn("permission denied", str(failure.exception))
+                self.assertIn("Google " + operation[0], str(failure.exception))
+                self.assertNotIn("private-canary", str(failure.exception))
+                self.assertNotIn("private-policy.json", str(failure.exception))
+
     def test_only_retired_member_is_removed_and_retry_is_idempotent(self):
         policy = {"etag": "current", "version": 3, "bindings": [
             {"role": "roles/iam.workloadIdentityUser", "members": [
