@@ -15,10 +15,26 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
+      actions: read
+      checks: read
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - run: python3 -m unittest discover -s .github/scripts -p test_retire_travel_gcp.py -v
+      - name: Verify read-only access to actual retirement evidence
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import sys
+          sys.path.insert(0, ".github/scripts")
+          from retire_travel_gcp import validate_retirements
+          try:
+              validate_retirements()
+          except ValueError:
+              print("Both completed retirements are not verified; Google mutation remains blocked.")
+          else:
+              print("Both actual guarded retirements and empty inventories verified.")
 
   retire:
     name: Revoke Travel trust after both owned-stack destroys
@@ -30,6 +46,8 @@ jobs:
       group: retained-gcp-project-handover
       cancel-in-progress: false
     permissions:
+      actions: read
+      checks: read
       contents: read
       id-token: write
     steps:
@@ -44,4 +62,5 @@ jobs:
           CONFIGURED_PROJECT: ${{ vars.GCP_PROJECT_ID }}
           CONFIGURED_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           CONFIGURED_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/retire_travel_gcp.py

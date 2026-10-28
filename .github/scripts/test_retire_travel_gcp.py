@@ -56,6 +56,9 @@ class EntryPointTests(unittest.TestCase):
         }, clear=True)
         environment.start()
         self.addCleanup(environment.stop)
+        evidence = mock.patch.object(retirement, "validate_retirements")
+        self.evidence = evidence.start()
+        self.addCleanup(evidence.stop)
         self.project = {"projectNumber": retirement.NUMBER, "lifecycleState": "ACTIVE"}
         self.billing = {"billingEnabled": True, "billingAccountName": "billingAccounts/retained"}
         self.services = [{"config": {"name": service}} for service in (
@@ -131,6 +134,12 @@ class EntryPointTests(unittest.TestCase):
                 finally:
                     setattr(self, attribute, original)
 
+    def test_incomplete_retirements_do_not_contact_google(self):
+        self.evidence.side_effect = ValueError("Production retirement has not completed.")
+        with self.assertRaises(ValueError):
+            retirement.main()
+        self.cloud.assert_not_called()
+
     def test_success_preserves_unrelated_policy_and_retry_does_not_write(self):
         expected = retirement.retired_policy(self.policy)
         retirement.main()
@@ -157,6 +166,59 @@ class EntryPointTests(unittest.TestCase):
         retirement.main()
         self.assertEqual(self.writes, ["iam"])
         self.assertEqual(retirement.retired_policy(self.policy), self.policy)
+
+
+class RetirementEvidenceTests(unittest.TestCase):
+    def setUp(self):
+        self.environments = {1: "Development", 2: "Production"}
+        self.apply = "success"
+        self.inventory = "success"
+        self.comparison = "identical"
+        self.check_sha = retirement.GUARDED_RETIREMENT
+        api = mock.patch.object(retirement, "github", side_effect=self.github)
+        api.start()
+        self.addCleanup(api.stop)
+
+    def github(self, path):
+        if path.startswith("actions/workflows/"):
+            return {"workflow_runs": [
+                {"id": number, "head_sha": retirement.GUARDED_RETIREMENT,
+                 "head_branch": "main", "event": "workflow_dispatch", "conclusion": "success"}
+                for number in (1, 2)
+            ]}
+        if path.startswith("actions/runs/"):
+            number = int(path.split("/")[2])
+            return {"jobs": [{"name": "terraform-destroy", "conclusion": "success",
+                              "check_run_url": f"https://api.github.com/check-runs/{number}",
+                              "steps": [
+                                  {"name": "Stop if retirement would destroy retained Google resources",
+                                   "conclusion": "success"},
+                                  {"name": "Apply only the validated retirement plan",
+                                   "conclusion": self.apply},
+                                  {"name": "Assert workload resource group is empty",
+                                   "conclusion": self.inventory},
+                              ]}]}
+        if path.startswith("check-runs/"):
+            number = int(path.split("/")[1])
+            return {"deployment": {"environment": self.environments[number]},
+                    "head_sha": self.check_sha, "conclusion": "success"}
+        if path.startswith("compare/"):
+            return {"status": self.comparison}
+        self.fail("Unexpected evidence request.")
+
+    def test_both_actual_guarded_apply_and_inventory_successes_are_required(self):
+        retirement.validate_retirements()
+        for attribute, value in (("apply", "skipped"), ("inventory", "failure"),
+                                 ("comparison", "behind"), ("check_sha", "unexpected"),
+                                 ("environments", {1: "Development", 2: "Development"})):
+            original = getattr(self, attribute)
+            with self.subTest(attribute=attribute):
+                setattr(self, attribute, value)
+                try:
+                    with self.assertRaises(ValueError):
+                        retirement.validate_retirements()
+                finally:
+                    setattr(self, attribute, original)
 
 
 if __name__ == "__main__":
