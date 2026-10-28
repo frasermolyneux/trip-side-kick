@@ -5,13 +5,13 @@ variable "workload" {
 }
 
 variable "environment" {
-  description = "Environment short name (dev or prd)."
+  description = "Retained production identity, vault, DNS and Google infrastructure only."
   type        = string
-  default     = "dev"
+  default     = "prd"
 
   validation {
-    condition     = contains(["dev", "prd"], var.environment)
-    error_message = "environment must be either \"dev\" or \"prd\"."
+    condition     = var.environment == "prd"
+    error_message = "Hosted Development is retired; this root manages Production only."
   }
 }
 
@@ -65,15 +65,13 @@ variable "cloudflare_api_token" {
 }
 
 variable "runtime_origin_ipv4" {
-  description = "Explicit Production DNS cutover to the constrained origin; null preserves Azure DNS routing for rollback."
+  description = "Production constrained-origin IPv4; Azure routing has been retired."
   type        = string
   default     = null
 
   validation {
-    condition = var.runtime_origin_ipv4 == null || (
-      var.environment == "prd" && can(cidrnetmask("${var.runtime_origin_ipv4}/32"))
-    )
-    error_message = "A constrained origin must be an IPv4 address and may only be set for Production."
+    condition     = can(cidrnetmask("${var.runtime_origin_ipv4}/32"))
+    error_message = "The retained production records require a constrained-origin IPv4."
   }
 }
 

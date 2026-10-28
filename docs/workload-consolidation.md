@@ -25,14 +25,25 @@ zones and their strict origin TLS baseline; no zone-wide TLS setting is changed
 by this workload. The host already has separate Origin CA certificates and
 canonical www redirects.
 
-Keep this cutover held until actual off-server database, document and keyring
-restores pass. Real delegated sign-in/sign-out and Trip B2B sign-up remain
-operator acceptance gates before Azure retirement. Azure compute, SQL/storage,
-Entra registration, existing DNS verification and Google ownership are retained.
-Setting `runtime_origin_ipv4` back to null restores DNS-only Azure routing in a
-reviewed rollback; existing managed Azure certificates cannot renew while
-Cloudflare proxying is enabled. Do not treat legacy Azure cleanup as collateral
-to the DNS change.
+After verified off-server restores and operator acceptance, legacy App Service,
+Azure SQL, Blob Storage, Application Insights and Azure-only credentials,
+verification records and certificates are retired. There is no Azure routing
+rollback. The production-only Terraform root retains the existing Entra
+registration, protected runtime vault/host access, live Cloudflare A records,
+and protected Google APIs/replacement key. Runtime Infrastructure remains the
+supported full-plan/manual-apply path. No container image or live database is
+changed by this cleanup.
+
+The shared Google project and billing foundation are externally retained, not
+owned by Travel's application Terraform or the platform workload catalog.
+After both Travel owned-stack destroys succeed, explicitly dispatch the
+main-only **Retire Travel Google Federation** workflow from this retained
+repository. It checks the exact audited provider/issuer/mapping/conditions,
+healthy project/billing/APIs and replacement Trip trust before any write.
+It removes only the retired Travel IAM member and provider condition, using
+the current IAM etag and preserving unrelated bindings. Idempotent retries
+retain Trip/platform access even after a partial update. It never mutates
+project, billing, API enablement or any API key.
 
 ## Runtime contract
 
