@@ -4,6 +4,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 from urllib.request import Request, urlopen
@@ -120,14 +121,19 @@ def gcloud(*arguments):
                   else 3 if arguments[0] in ("iam", "billing") else 2)
         operation = " ".join(arguments[:length])
         diagnostic = result.stderr.lower()
-        if any(marker in diagnostic for marker in (
-                "service_disabled", "has not been used", "api is disabled")):
+        if (any(marker in diagnostic for marker in ("service_disabled", "has not been used"))
+                or re.search(r"\bapi(?:\s+\[[^\]\r\n]+\])?\s+(?:is\s+)?(?:not enabled|disabled)\b",
+                             diagnostic)):
             category = "requires an enabled API"
         elif any(marker in diagnostic for marker in (
-                "invalid_grant", "unauthorized_client", "insufficient authentication scopes")):
+                "invalid_grant", "unauthorized_client", "insufficient authentication scopes",
+                "unauthenticated", "invalid authentication credentials", "invalid credentials",
+                "access_token_scope_insufficient")):
             category = "authentication rejected"
-        elif any(marker in diagnostic for marker in (
-                "permission_denied", "does not have permission", "permission denied")):
+        elif (any(marker in diagnostic for marker in (
+                "permission_denied", "does not have permission", "does not have required permission",
+                "does not have sufficient permission", "insufficient permission"))
+                or re.search(r"\bpermission\b[^\r\n]*\bdenied\b", diagnostic)):
             category = "permission denied"
         elif any(marker in diagnostic for marker in ("invalid choice", "unrecognized arguments")):
             category = "command unavailable"

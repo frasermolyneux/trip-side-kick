@@ -12,8 +12,18 @@ class RetirementTests(unittest.TestCase):
         for diagnostic, category in (
             ("does not have permission: Cloud Billing API has not been used", "requires an enabled API"),
             ("SERVICE_DISABLED", "requires an enabled API"),
+            ("API [cloudbilling.googleapis.com] not enabled on project private-project",
+             "requires an enabled API"),
+            ("Permission denied: Cloud Billing API is not enabled", "requires an enabled API"),
             ("does not have permission to access projects", "permission denied"),
+            ("Permission 'billing.resourceAssociations.get' denied on resource", "permission denied"),
+            ("Caller does not have required permission to use project", "permission denied"),
+            ("Insufficient Permission", "permission denied"),
             ("unauthorized_client", "authentication rejected"),
+            ("UNAUTHENTICATED: Request had invalid authentication credentials",
+             "authentication rejected"),
+            ("ACCESS_TOKEN_SCOPE_INSUFFICIENT", "authentication rejected"),
+            ("Billing is not enabled on this project", "failed"),
             ("invalid choice: billing", "command unavailable"),
             ("unexpected service response", "failed"),
         ):
