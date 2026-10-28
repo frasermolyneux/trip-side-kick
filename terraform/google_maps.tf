@@ -47,4 +47,7 @@ resource "google_apikeys_key" "maps" {
     google_project_service.maps_backend,
     google_project_service.places_api,
   ]
+  lifecycle {
+    prevent_destroy = true
+  }
 }

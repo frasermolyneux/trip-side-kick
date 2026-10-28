@@ -76,3 +76,20 @@ jobs:
           AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
         env:
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_KEY }}
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Remove only the retired Application Insights failure detector
+        shell: bash
+        run: |
+          set -euo pipefail
+          detector=$(az resource list --resource-group rg-trip-side-kick-prd-swedencentral \
+            --resource-type Microsoft.AlertsManagement/smartDetectorAlertRules \
+            --query "[?name == 'Failure Anomalies - ai-trip-side-kick-prd-swedencentral'].id | [0]" \
+            --output tsv --only-show-errors)
+          if [[ -n "$detector" ]]; then
+            az resource delete --ids "$detector" --only-show-errors
+            az resource wait --deleted --ids "$detector" --interval 10 --timeout 180
+          fi

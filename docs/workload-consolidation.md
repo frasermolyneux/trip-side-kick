@@ -25,14 +25,14 @@ zones and their strict origin TLS baseline; no zone-wide TLS setting is changed
 by this workload. The host already has separate Origin CA certificates and
 canonical www redirects.
 
-Keep this cutover held until actual off-server database, document and keyring
-restores pass. Real delegated sign-in/sign-out and Trip B2B sign-up remain
-operator acceptance gates before Azure retirement. Azure compute, SQL/storage,
-Entra registration, existing DNS verification and Google ownership are retained.
-Setting `runtime_origin_ipv4` back to null restores DNS-only Azure routing in a
-reviewed rollback; existing managed Azure certificates cannot renew while
-Cloudflare proxying is enabled. Do not treat legacy Azure cleanup as collateral
-to the DNS change.
+After verified off-server restores and operator acceptance, legacy App Service,
+Azure SQL, Blob Storage, Application Insights and Azure-only credentials,
+verification records and certificates are retired. There is no Azure routing
+rollback. The production-only Terraform root retains the existing Entra
+registration, protected runtime vault/host access, live Cloudflare A records,
+and protected Google APIs/replacement key. Runtime Infrastructure remains the
+supported full-plan/manual-apply path. No container image or live database is
+changed by this cleanup.
 
 ## Runtime contract
 
