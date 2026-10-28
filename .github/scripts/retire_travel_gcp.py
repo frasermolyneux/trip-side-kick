@@ -119,7 +119,20 @@ def gcloud(*arguments):
         length = (4 if arguments[:2] == ("iam", "workload-identity-pools")
                   else 3 if arguments[0] in ("iam", "billing") else 2)
         operation = " ".join(arguments[:length])
-        category = "permission denied" if "PERMISSION_DENIED" in result.stderr else "failed"
+        diagnostic = result.stderr.lower()
+        if any(marker in diagnostic for marker in (
+                "service_disabled", "has not been used", "api is disabled")):
+            category = "requires an enabled API"
+        elif any(marker in diagnostic for marker in (
+                "invalid_grant", "unauthorized_client", "insufficient authentication scopes")):
+            category = "authentication rejected"
+        elif any(marker in diagnostic for marker in (
+                "permission_denied", "does not have permission", "permission denied")):
+            category = "permission denied"
+        elif any(marker in diagnostic for marker in ("invalid choice", "unrecognized arguments")):
+            category = "command unavailable"
+        else:
+            category = "failed"
         raise GuardFailure(f"Google {operation} {category}; diagnostic output withheld.")
     return json.loads(result.stdout) if result.stdout.strip() else None
 

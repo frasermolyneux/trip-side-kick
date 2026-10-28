@@ -8,6 +8,24 @@ import retire_travel_gcp as retirement
 
 
 class RetirementTests(unittest.TestCase):
+    def test_google_cli_human_readable_errors_map_to_fixed_private_categories(self):
+        for diagnostic, category in (
+            ("does not have permission: Cloud Billing API has not been used", "requires an enabled API"),
+            ("SERVICE_DISABLED", "requires an enabled API"),
+            ("does not have permission to access projects", "permission denied"),
+            ("unauthorized_client", "authentication rejected"),
+            ("invalid choice: billing", "command unavailable"),
+            ("unexpected service response", "failed"),
+        ):
+            result = mock.Mock(returncode=1, stderr=diagnostic + " private-canary", stdout="")
+            with self.subTest(category=category), mock.patch.object(
+                    retirement.subprocess, "run", return_value=result):
+                with self.assertRaises(retirement.GuardFailure) as failure:
+                    retirement.gcloud("billing", "projects", "describe", retirement.PROJECT)
+                self.assertEqual(str(failure.exception),
+                                 f"Google billing projects describe {category}; diagnostic output withheld.")
+                self.assertNotIn("private-canary", str(failure.exception))
+
     def test_google_failure_identifies_only_operation_and_withholds_raw_diagnostics(self):
         for operation in (
             ("projects", "describe", retirement.PROJECT),
