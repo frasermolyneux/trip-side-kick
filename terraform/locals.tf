@@ -1,78 +1,18 @@
 locals {
   resource_group_name = "rg-${var.workload}-${var.environment}-${var.location}"
 
-  production_app_service_plan      = var.environment == "prd" ? data.terraform_remote_state.platform_hosting["prd"].outputs.app_service_plans["default"] : null
   platform_monitoring_workspace_id = data.terraform_remote_state.platform_monitoring.outputs.log_analytics.id
-  web_app_resource_group_name      = var.environment == "prd" ? local.production_app_service_plan.resource_group_name : data.azurerm_resource_group.rg.name
-  web_app_location                 = var.environment == "prd" ? local.production_app_service_plan.location : var.location
-  web_app_service_plan_id          = var.environment == "prd" ? local.production_app_service_plan.id : azurerm_service_plan.dev[0].id
-
-  web_app_name      = "app-${var.workload}-${var.environment}-${var.location}-${random_id.environment_id.hex}"
-  key_vault_name    = "kv-${random_id.environment_id.hex}"
-  app_insights_name = "ai-${var.workload}-${var.environment}-${var.location}"
-  sql_server_name   = "sql-${var.workload}-${var.environment}-${var.location}-${random_id.environment_id.hex}"
-  sql_database_name = "sqldb-${var.workload}-${var.environment}"
-
-  # User-assigned managed identity the App Service uses for Azure SQL data access (managed_identity.tf).
-  sql_data_identity_name = "id-${var.workload}-${var.environment}-${var.location}"
-
-  storage_account_prefix = substr(replace(var.workload, "-", ""), 0, 11)
-  storage_account_name   = lower("st${local.storage_account_prefix}${var.environment}${random_id.storage.hex}")
-
-  blob_container_names = {
-    documents      = "documents"
-    dataprotection = "dataprotection"
-  }
+  key_vault_name                   = "kv-${random_id.environment_id.hex}"
 
   # Cloudflare zones referenced by the configured custom domains.
   cloudflare_zone_names = toset([for domain in var.custom_domains : domain.zone])
 
-  # Single source of truth for the custom-domain DNS record TTL (dns_records.tf) so the
-  # first-apply propagation wait (time_sleep.wait_for_dns_propagation in web_app.tf) can't drift
-  # out of sync with it.
-  custom_domain_dns_ttl_seconds = 300
-
-  # www aliases exist purely so the app can 308 them to the apex host; they are bound to the App
-  # Service (so TLS terminates) but are never added to the host-routing allow lists.
   primary_domains = { for key, domain in var.custom_domains : key => domain if !domain.redirect }
 
-  host_routing = {
-    site_hosts = concat(
-      [for domain in local.primary_domains : domain.hostname if domain.surface == "site"],
-      ["${local.web_app_name}.azurewebsites.net"]
-    )
-    app_hosts = concat(
-      [for domain in local.primary_domains : domain.hostname if domain.surface == "app"],
-      ["${local.web_app_name}.azurewebsites.net"]
-    )
-  }
-
-  # HostRouting__SiteHosts__0 = ... style App Service settings.
-  host_routing_app_settings = merge(
-    { for index, host in local.host_routing.site_hosts : "HostRouting__SiteHosts__${index}" => host },
-    { for index, host in local.host_routing.app_hosts : "HostRouting__AppHosts__${index}" => host }
-  )
-
-  is_serverless_sql = startswith(var.sql_database.sku_name, "GP_S_")
-
-  # Entra External ID app registration (identity.tf): the app surface's public hostnames plus the
-  # App Service default hostname (useful before/without a custom domain) get BFF sign-in callback
-  # URIs. Only "dev" also trusts the local HTTPS dev-server redirect URI (Properties/launchSettings.json).
   identity_app_hostnames = [for domain in local.primary_domains : domain.hostname if domain.surface == "app"]
 
-  identity_redirect_uris = concat(
-    [for hostname in local.identity_app_hostnames : "https://${hostname}/signin-oidc"],
-    ["https://${local.web_app_name}.azurewebsites.net/signin-oidc"],
-    var.environment == "dev" ? ["https://localhost:7207/signin-oidc"] : []
-  )
-
-  # Entra app registrations support only a single front-channel logout URL; prefer the public app
-  # hostname and fall back to the default hostname when no custom domain is configured.
-  identity_logout_url = length(local.identity_app_hostnames) > 0 ? (
-    "https://${local.identity_app_hostnames[0]}/signout-callback-oidc"
-    ) : (
-    "https://${local.web_app_name}.azurewebsites.net/signout-callback-oidc"
-  )
+  identity_redirect_uris = [for hostname in local.identity_app_hostnames : "https://${hostname}/signin-oidc"]
+  identity_logout_url    = "https://${local.identity_app_hostnames[0]}/signout-callback-oidc"
 
   tags = merge(var.tags, {
     Environment = var.environment

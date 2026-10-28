@@ -44,8 +44,12 @@ Use LF endings, including generated migrations; warnings are errors.
   metadata, host database port, or separate API/SPA deployment.
 * `workload.json` zero digests are intentionally nondeployable. No host activation,
   deployment, resource destruction, credential rotation or PR merge as collateral.
-* Retain Terraform destroy capability and identity/vault definitions until the
-  platform coordinates retirement. Do not mutate Terraform state or GCP resources.
+* Production Terraform retains protected Entra identity, runtime vault/host RBAC,
+  live DNS and Google APIs/key after coordinated legacy Azure retirement.
+  Do not mutate state or Google project/billing/APIs/keys as collateral.
+  The separately reviewed, fixed-scope `Retire Travel Google Federation`
+  operation is authorized only after both Travel owned-stack destroys. It removes
+  only retired Travel trust and preserves Trip/platform trust and all other IAM.
 * Preserve required CI checks: `dependabot-policy`, `SonarCloud Code Analysis`,
   `build-and-test`, `quality / Code Quality`,
   `devops-secure-scanning / DevOps Secure Scanning`.

@@ -1,0 +1,66 @@
+name: Retire Travel Google Federation
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/retire_travel_gcp.py"
+      - ".github/scripts/test_retire_travel_gcp.py"
+      - ".github/workflows/retire-travel-gcp.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  guard-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: python3 -m unittest discover -s .github/scripts -p test_retire_travel_gcp.py -v
+      - name: Verify read-only access to actual retirement evidence
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          import sys
+          sys.path.insert(0, ".github/scripts")
+          from retire_travel_gcp import validate_retirements
+          try:
+              validate_retirements()
+          except ValueError:
+              print("Both completed retirements are not verified; Google mutation remains blocked.")
+          else:
+              print("Both actual guarded retirements and empty inventories verified.")
+
+  retire:
+    name: Revoke Travel trust after both owned-stack destroys
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    environment: Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: retained-gcp-project-handover
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      checks: read
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - name: Revoke only retired Travel trust while retaining the shared capability
+        env:
+          CONFIGURED_PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          CONFIGURED_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          CONFIGURED_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/retire_travel_gcp.py
