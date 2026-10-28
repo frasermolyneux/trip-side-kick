@@ -20,6 +20,17 @@ resource "google_project_service" "places_api" {
   }
 }
 
+resource "google_project_service" "billing_api" {
+  count              = var.environment == "prd" ? 1 : 0
+  project            = "gcp-mx-io-travel-itinerary"
+  service            = "cloudbilling.googleapis.com"
+  disable_on_destroy = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_apikeys_key" "maps" {
   count        = var.environment == "prd" ? 1 : 0
   name         = "maps-trip-side-kick-prd-31aac1a62737"
