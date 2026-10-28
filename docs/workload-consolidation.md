@@ -40,6 +40,11 @@ After both Travel owned-stack destroys succeed, explicitly dispatch the
 main-only **Retire Travel Google Federation** workflow from this retained
 repository. It checks the exact audited provider/issuer/mapping/conditions,
 healthy project/billing/APIs and replacement Trip trust before any write.
+With explicit operator approval, the Production root enables only the Cloud
+Billing API (`cloudbilling.googleapis.com`) in the retained project so this
+billing-information read can succeed. Like the Maps services, it has
+`prevent_destroy` and `disable_on_destroy = false`; this does not change the
+billing account, project, Maps APIs or keys.
 It removes only the retired Travel IAM member and provider condition, using
 the current IAM etag and preserving unrelated bindings. Idempotent retries
 retain Trip/platform access even after a partial update. It never mutates
