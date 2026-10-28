@@ -104,7 +104,8 @@ class EntryPointTests(unittest.TestCase):
         evidence = mock.patch.object(retirement, "validate_retirements")
         self.evidence = evidence.start()
         self.addCleanup(evidence.stop)
-        self.project = {"projectNumber": retirement.NUMBER, "lifecycleState": "ACTIVE"}
+        self.project = {"projectNumber": retirement.NUMBER, "projectId": retirement.PROJECT,
+                        "lifecycleState": "ACTIVE"}
         self.billing = {"billingEnabled": True, "billingAccountName": "billingAccounts/retained"}
         self.services = [{"config": {"name": service}} for service in (
             "maps-backend.googleapis.com", "places.googleapis.com"
@@ -162,19 +163,24 @@ class EntryPointTests(unittest.TestCase):
 
     def test_failed_preflight_never_writes(self):
         cases = [
-            ("project", {"projectNumber": "unexpected", "lifecycleState": "ACTIVE"}),
-            ("billing", {**self.billing, "billingEnabled": False}),
-            ("services", []),
-            ("provider", {**self.provider, "attributeCondition": "true"}),
-            ("policy", {"etag": "current", "bindings": []}),
+            ("project", {**self.project, "projectNumber": "private-canary"}, "project number"),
+            ("project", {**self.project, "lifecycleState": "DELETE_REQUESTED"}, "project lifecycle"),
+            ("billing", {**self.billing, "billingEnabled": False,
+                         "billingAccountName": "private-canary"}, "billing enablement"),
+            ("services", [self.services[1]], "Maps API enablement"),
+            ("services", [self.services[0]], "Places API enablement"),
+            ("provider", {**self.provider, "attributeCondition": "private-canary"}, "condition"),
+            ("policy", {"etag": "current", "bindings": []}, "Replacement repository trust"),
         ]
-        for attribute, invalid in cases:
+        for attribute, invalid, reason in cases:
             original = getattr(self, attribute)
             with self.subTest(attribute=attribute):
                 setattr(self, attribute, invalid)
                 try:
-                    with self.assertRaises(ValueError):
+                    with self.assertRaises(retirement.GuardFailure) as failure:
                         retirement.main()
+                    self.assertIn(reason, str(failure.exception))
+                    self.assertNotIn("private-canary", str(failure.exception))
                     self.assertEqual(self.writes, [])
                 finally:
                     setattr(self, attribute, original)

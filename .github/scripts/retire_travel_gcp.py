@@ -88,11 +88,15 @@ def validate_retirements():
 
 
 def validate_provider(provider):
-    if (provider.get("state") != "ACTIVE"
-            or provider.get("oidc", {}).get("issuerUri") != "https://token.actions.githubusercontent.com"
-            or provider.get("attributeMapping") != MAPPING
-            or provider.get("attributeCondition") not in (OLD, DESIRED)):
-        raise GuardFailure("Federation differs from the reviewed retirement contract.")
+    checks = {
+        "state": provider.get("state") == "ACTIVE",
+        "issuer": provider.get("oidc", {}).get("issuerUri") == "https://token.actions.githubusercontent.com",
+        "mapping": provider.get("attributeMapping") == MAPPING,
+        "condition": provider.get("attributeCondition") in (OLD, DESIRED),
+    }
+    failed = [name for name, healthy in checks.items() if not healthy]
+    if failed:
+        raise GuardFailure("Federation contract mismatch: " + ", ".join(failed) + ".")
 
 
 def retired_policy(policy):
@@ -153,10 +157,18 @@ def retained():
     billing = gcloud("billing", "projects", "describe", PROJECT)
     services = gcloud("services", "list", "--enabled", f"--project={PROJECT}")
     enabled = {entry["config"]["name"] for entry in services}
-    if (str(project.get("projectNumber")) != NUMBER or project.get("lifecycleState") != "ACTIVE"
-            or billing.get("billingEnabled") is not True
-            or not {"maps-backend.googleapis.com", "places.googleapis.com"} <= enabled):
-        raise GuardFailure("Retained project, billing or APIs are not healthy.")
+    checks = {
+        "project number": str(project.get("projectNumber")) == NUMBER,
+        "project lifecycle": project.get("lifecycleState") == "ACTIVE",
+        "billing enablement": billing.get("billingEnabled") is True,
+        "Maps API enablement": "maps-backend.googleapis.com" in enabled,
+        "Places API enablement": "places.googleapis.com" in enabled,
+    }
+    failed = [name for name, healthy in checks.items() if not healthy]
+    if failed:
+        identity = "matches" if project.get("projectId") == PROJECT else "does not match"
+        raise GuardFailure("Retained prerequisite failed: " + ", ".join(failed)
+                           + f". Returned project ID {identity} the configured project.")
     return billing["billingAccountName"]
 
 
@@ -187,9 +199,12 @@ def main():
     after = provider()
     validate_provider(after)
     policy = gcloud("iam", "service-accounts", "get-iam-policy", ACCOUNT, f"--project={PROJECT}")
-    if (after["attributeCondition"] != DESIRED or retired_policy(policy) != policy
-            or retained() != billing):
-        raise GuardFailure("Retirement verification failed.")
+    if after["attributeCondition"] != DESIRED:
+        raise GuardFailure("Retirement verification failed: provider condition.")
+    if retired_policy(policy) != policy:
+        raise GuardFailure("Retirement verification failed: retired IAM member remains.")
+    if retained() != billing:
+        raise GuardFailure("Retirement verification failed: billing association changed.")
     print("Verified retained project/billing/APIs and Trip trust; retired only Travel federation.")
 
 
