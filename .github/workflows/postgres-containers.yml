@@ -53,7 +53,7 @@ jobs:
           python3 deployment/test_containers.py
       - name: Upload browser report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: playwright-postgres-${{ github.run_id }}
           path: tests/e2e/playwright-report/
