@@ -9,6 +9,7 @@ permissions: {}
 
 jobs:
   auto-merge-policy:
+    name: dependabot-policy
     permissions:
       contents: read
     runs-on: ubuntu-latest
