@@ -4,7 +4,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 5.10.0"
+      version = "~> 5.11.0"
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -20,7 +20,7 @@ terraform {
     }
     google = {
       source  = "hashicorp/google"
-      version = "~> 8.8.0"
+      version = "~> 8.9.0"
     }
     time = {
       source  = "hashicorp/time"
