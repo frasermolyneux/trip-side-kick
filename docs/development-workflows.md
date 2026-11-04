@@ -99,7 +99,7 @@ A real `plan`/`apply` needs Azure OIDC credentials and the Cloudflare token, so 
 | `build-and-test.yml` | push to `feature/**`, `bugfix/**`, `hotfix/**`, `agents/**` | Client tests, .NET build/test/format, dev Terraform plan when `terraform/**` changed |
 | `pr-verify.yml` | pull request | `build-and-test` job (required check) plus label-driven Terraform jobs |
 | `codequality.yml` | PR, push to `main`, Monday 08:30 UTC | SonarCloud analysis, DevOps secure scanning, dependency review |
-| `dependabot-automerge.yml` | pull request | `dependabot-policy` required check; auto-merges compliant Dependabot PRs |
+| `dependabot-automerge.yml` | pull request | `dependabot-policy` required check; auto-merges approved-bot PRs after required checks pass |
 | `deploy-dev.yml` | manual | Full build → Terraform apply → App Service deploy to Development |
 | `deploy-prd.yml` | push to `main`, manual, Thursday 05:00 UTC | Development then Production apply + deploy |
 | `destroy-development.yml` | daily 23:55 UTC, manual | Tears the Development environment down overnight, including its B1 plan, then verifies the workload resource group is empty |

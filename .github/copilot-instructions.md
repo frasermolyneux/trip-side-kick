@@ -59,7 +59,8 @@ never checked-out/executed PR code.
 
 Production image publication is exact-source quality-gated and immutable.
 Promotion PRs change digests only, retain exact-head quality/Copilot review
-guards, and do not auto-merge or deploy. Initial zero digests gate activation.
+guards, and may auto-merge only under the approved-bot policy after those checks
+pass; they do not deploy. Initial zero digests gate activation.
 Legacy apply/deploy triggers are disabled. Production-only Terraform retains
 protected identity/vault, live DNS and Google APIs/key after coordinated Azure
 retirement. No hosted dev environment or arbitrary GCP foundation changes.
