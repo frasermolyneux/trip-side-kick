@@ -22,8 +22,10 @@ legacy deployments.
 constrained host. All four public app/brochure apex and www records become
 proxied A records. `platform-connectivity` retains ownership of both managed
 zones and their strict origin TLS baseline; no zone-wide TLS setting is changed
-by this workload. The host already has separate Origin CA certificates and
-canonical www redirects.
+by this workload. The shared Caddy host manages publicly trusted certificates
+automatically for the four names; the application redirects www to apex.
+Public DNS, Cloudflare and the host firewall must allow a default Caddy ACME
+challenge to reach Caddy. Issuance and renewal are not verified until rollout.
 
 After verified off-server restores and operator acceptance, legacy App Service,
 Azure SQL, Blob Storage, Application Insights and Azure-only credentials,
@@ -92,12 +94,12 @@ is a database owner, not a superuser, role creator or replication user. Bootstra
 reuses the password secret but does not permit remote administrative login.
 Password rotation is a separate operator action, never an application deployment.
 
-The protected main-only credential and Origin TLS workflows check weekly on
-Monday at 06:10 and 06:25 UTC respectively, with manual dispatch retained.
-Certificates renew only within 30 days of expiry. Existing database passwords,
-completed schema-initialization state and unrelated/unexpired Entra credentials
+The protected main-only credential workflow checks weekly on Monday at 06:10 UTC,
+with manual dispatch retained. Entra certificates renew only within 30 days of
+expiry. Existing database passwords, completed schema-initialization state and
+unrelated/unexpired Entra credentials
 are retained; missing established credentials fail closed rather than resetting
-the runtime. These jobs do not deploy images or retire Azure resources.
+the runtime. This job does not deploy images or retire Azure resources.
 
 The runtime adapter must populate `ForwardedHeaders:KnownProxies` with the exact
 Caddy IP. Existing framework loopback trust remains; no proxy/network allowlists
