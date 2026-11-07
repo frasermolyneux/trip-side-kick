@@ -7,7 +7,6 @@ on:
       - ".github/scripts/test_bootstrap*.py"
       - ".github/workflows/bootstrap-runtime.yml"
       - ".github/workflows/complete-runtime-bootstrap.yml"
-      - ".github/workflows/renew-origin-tls.yml"
       - ".github/workflows/deliver-google-maps.yml"
       - ".github/workflows/runtime-bootstrap-tests.yml"
 

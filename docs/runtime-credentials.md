@@ -19,10 +19,9 @@ After applying the reviewed vault/host permissions, dispatch:
 
 ```powershell
 gh workflow run bootstrap-runtime.yml --repo frasermolyneux/trip-side-kick --ref main
-gh workflow run renew-origin-tls.yml --repo frasermolyneux/trip-side-kick --ref main
 ```
 
-The first workflow discovers the exact registration and vault from the approved
+The workflow discovers the exact registration and vault from the approved
 runtime example and validation policy, checks ownership/tenant/audience, and
 creates a database password only if missing. It generates an ephemeral RSA key,
 appends the public certificate, authenticates it against Entra, and only then
@@ -42,15 +41,17 @@ Existing database passwords are never implicitly
 rotated. An unchanged reviewed configuration creates no new secret version.
 Trusted Caddy addresses are resolved and injected only by the host.
 
-Credential and TLS workflows are manual-only during initial rollout. Enable
-their weekly renewal schedules in a reviewed post-acceptance change.
-Certificate checks renew 180-day Entra certificates within 30 days of expiry.
+The credential workflow checks weekly on Monday at 06:10 UTC and can also be
+dispatched manually. Certificate checks renew 180-day Entra certificates within
+30 days of expiry.
 Unrelated public keys and unexpired previous certificates are retained;
 only this workflow's expired keys are eligible for removal after seven days.
-The independent origin workflow requests 365-day Origin CA certificates for
-the exact brochure/app apex and www hostnames and renews within 30 days. It
-does not modify DNS or routes. A separate exact-zone
-`CLOUDFLARE_ORIGIN_API_TOKEN` is supplied by the workload catalog.
+
+Caddy manages the public origin certificates automatically. After the platform
+change is deployed and the four hosts are confirmed working over HTTPS, the
+operator can remove the obsolete `origin-tls` vault secret and its no-longer-used
+Cloudflare Origin CA certificate. The separate Origin CA API token and GitHub
+secret are addressed by the platform-workloads change, not by this workflow.
 
 Missing established credentials, unexpected ownership, disabled secrets,
 expiring database passwords or changed
