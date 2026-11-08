@@ -1,34 +1,8 @@
 #!/usr/bin/env bash
-# Idempotent Microsoft Graph configuration for Entra External ID self-service sign-up.
-#
-# Runs as a discrete CI step (not a Terraform provisioner) because:
-#   1. hashicorp/azuread ~> 3.9 has no resource for authenticationFlowsPolicy,
-#      authenticationEventsFlow (the actual self-service sign-up user flow object), or attaching
-#      identity providers to a flow - the provider's coverage stops at azuread_application /
-#      azuread_service_principal / azuread_application_federated_identity_credential (see
-#      terraform/identity.tf).
-#   2. The shared terraform-plan-and-apply composite authenticates only the azurerm/azuread
-#      Terraform providers via ARM_* OIDC env vars; it never runs `az login`, so a Terraform
-#      local-exec provisioner in this stack would have no Graph token to call `az rest` with. This
-#      script therefore runs as its own workflow step, after its own `azure/login`, using the same
-#      federated workload identity (no secrets - see standards.oidc-and-secrets).
-#
-# Scope actually covered by the Graph application permissions granted to this workload
-# (Policy.ReadWrite.AuthenticationFlows, IdentityProvider.ReadWrite.All):
-#   - Enable "self-service sign-up via user flows" tenant-wide (authenticationFlowsPolicy).
-#   - Confirm the built-in Email OTP and Microsoft account identity providers are present (both are
-#     zero-configuration, on-by-default providers for a workforce tenant - see
-#     docs/identity-and-access.md and the manual runbook it links to).
-#
-# NOT covered, and therefore NOT attempted here: creating/updating the actual self-service sign-up
-# user flow (a Microsoft Graph `authenticationEventsFlow` of subtype
-# `externalUsersSelfServiceSignUpEventsFlow`) and attaching identity providers/the app registration
-# to it. Both operations require the `EventListener.ReadWrite.All` Graph application permission,
-# which platform-workloads has not granted to this workload (only
-# `IdentityUserFlow.ReadWrite.All` is granted, and that permission covers the older, B2C-only
-# `b2cUserFlows` API - a different Graph resource this workload does not use). See the manual
-# runbook in docs/identity-and-access.md for the precise portal steps, and the commented Graph
-# payload below for what to automate here once/if that permission is added.
+# Legacy Graph helper, not invoked by current deployment workflows. It can change
+# the tenant-wide self-service sign-up policy; do not run without separate review
+# and authorization. It does not create or attach the user flow. See
+# docs/identity-and-access.md for current verification guidance.
 set -euo pipefail
 
 if ! command -v az >/dev/null 2>&1; then

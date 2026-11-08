@@ -22,7 +22,7 @@ public sealed class TripSideKickApplicationFactory : WebApplicationFactory<Progr
     public const string AppHost = "app.tripsidekick.test";
 
     /// <summary>
-    /// Optional real SQL connection string (e.g. a Testcontainers SQL Server instance). When null
+    /// Optional PostgreSQL connection string (e.g. a Testcontainers instance). When null
     /// (the default), no <c>Sql:ConnectionString</c> is configured and the app falls back to the
     /// in-memory Empty* repositories, exactly as it does today for the non-SQL integration tests.
     /// Must be set before the host starts (i.e. before the first client/service is requested).

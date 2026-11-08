@@ -17,7 +17,7 @@ One aggregate root, one table, one API resource: `MX.TripSideKick.Domain.Itinera
 Promotion (idea → activity) is `item.PlaceOnDay(new ItinerarySchedule(...))`. Demotion (activity →
 idea) is `item.Unschedule()`. Because the state is carried in an explicit
 `ItineraryScheduleStatus` value on a single `ItinerarySchedule` complex property, this exactly
-mirrors how `TripDates` models `Undecided`/`Provisional`/`Confirmed`: **no polymorphism, no
+mirrors how `TripDates` models `Undecided`/`Approximate`/`Confirmed`: **no polymorphism, no
 inheritance, no duplicated tables, no risk of an item existing in "both" collections at once**.
 
 > Naming note: the aggregate exposes a `Schedule` property, so the method that changes the
@@ -138,7 +138,7 @@ the client — same rule as comments' `AuthorDisplayName`.
   `Application/Itinerary/ItineraryPlanningServiceTests.cs` and
   `Application/Travellers/TripTravellerFilterServiceTests.cs` cover orchestration with mocked
   repositories.
-- **Integration tests**: `Integration/ItineraryIntegrationTests.cs` runs against a real
-  Testcontainers SQL Server via the `SqlServerTestGroup` collection.
+- **Integration tests**: `Integration/ItineraryIntegrationTests.cs` runs against disposable
+  PostgreSQL via the `SqlServerTestGroup` collection (the collection retains its legacy name).
 - **E2E**: `tests/e2e/tests/journey-itinerary.spec.ts` covers the Owner-Editor-Viewer story
   end-to-end plus server-side proofs for the Viewer 403s on content mutations.

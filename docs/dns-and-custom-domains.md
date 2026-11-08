@@ -20,6 +20,6 @@ Public DNS, Cloudflare and the host firewall must allow at least one default
 Caddy ACME challenge to reach Caddy. The actual rollout will establish whether
 issuance and subsequent renewal work; failure can interrupt HTTPS.
 
-The platform ingress change and obsolete credential cleanup require separate
-review and rollout. No DNS, certificate or host changes are applied by this
-source change.
+Platform ingress changes and obsolete credential cleanup require separate
+review and rollout. See [runtime credentials](runtime-credentials.md) for the
+reported cleanup status and outstanding certificate verification.

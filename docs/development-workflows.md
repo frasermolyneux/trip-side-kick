@@ -1,138 +1,57 @@
-# Development Workflows
+# Development workflows
 
-## Prerequisites
+Use the SDK selected by `global.json`, Node as configured in the CI workflows,
+and Docker for database, container and browser integration tests. Terraform
+changes use the CLI selected by `terraform/.terraform-version` and the
+committed provider lock file.
 
-| Tool | Version | Notes |
-| --- | --- | --- |
-| .NET SDK | 10.0.100+ | Pinned by `global.json` (`rollForward: latestFeature`) |
-| Node.js | 22.x LTS | npm 10+; `package-lock.json` is committed |
-| Terraform | 1.15.6+ | Only needed for infrastructure changes |
-| Docker | any recent | Optional: local SQL Server + Azurite via `docker compose` |
+## Build and test
 
-## Build, test, format
+From the repository root:
 
-All .NET commands run from the repository root unless stated otherwise.
-
-```bash
-# Restore + build the whole solution (warnings are errors)
-dotnet build src/MX.TripSideKick.slnx
-
-# Run every test
-dotnet test src/MX.TripSideKick.slnx
-
-# Run a single test class
-dotnet test src/MX.TripSideKick.slnx --filter "FullyQualifiedName~HostRoutingTests"
-
-# Formatting gate (must be clean; CI runs the same command)
-cd src && dotnet format "." --verify-no-changes
+```powershell
+dotnet build src\MX.TripSideKick.slnx
+dotnet test src\MX.TripSideKick.slnx --filter 'FullyQualifiedName!~IntegrationTests'
+dotnet format src\MX.TripSideKick.slnx --verify-no-changes
 ```
 
-Client commands run from `src/MX.TripSideKick.Web/ClientApp`:
+The web project builds the client bundle through MSBuild. Use
+`-p:SkipClientBuild=true` only for backend-focused work. For client-only work,
+run `npm ci`, `npm run build` and `npm run test` in
+`src\MX.TripSideKick.Web\ClientApp`. Generated `wwwroot/` is not committed;
+brochure assets belong in `SiteAssets/`.
 
-```bash
-npm ci          # install exactly what the lockfile says
-npm run build   # type-check (tsc -b) + Vite production build into ../wwwroot
-npm run test    # Vitest + Testing Library + MSW
-npm run dev     # Vite dev server on http://localhost:5173, proxying /v1 and /api to the host
+See [testing](testing.md) for integration, browser and image checks.
+
+## Run locally
+
+Start the disposable database with `docker compose up -d postgres`. Set
+`Sql__ConnectionString` to the host, database, user and disposable password
+specified in `docker-compose.yml`, then opt in to initialization with
+`Sql__InitializeOnStartup=true` and run:
+
+```powershell
+dotnet run --project src\MX.TripSideKick.Web
 ```
 
-`dotnet build` on `MX.TripSideKick.Web` runs `npm ci` (when `node_modules` is missing) and
-`npm run build` through MSBuild targets, so a plain `dotnet build`/`dotnet publish` always produces a
-complete artefact. Set `-p:SkipClientBuild=true` to opt out when iterating on server code only.
+The launch profile supplies local host routing: `localhost` and
+`app.localhost` are app hosts; `127.0.0.1` and `site.localhost` are site
+hosts. See `Properties/launchSettings.json` for ports. A local Development
+instance may start without a database, but readiness is unhealthy.
 
-> `wwwroot/` is **generated output** and is git-ignored. It holds the PWA bundle only and is served
-> exclusively on the app hosts. Brochure-site static assets live in
-> `src/MX.TripSideKick.Web/SiteAssets/`, are source-controlled, and are served exclusively on the
-> site hosts — do not put them in `ClientApp/public/`, which Vite empties into `wwwroot/`.
+For client hot reload, run `npm run dev` in the client directory alongside the
+web host. Vite proxies `/v1` and `/api` to the local host.
 
-## Running locally
+## Delivery and infrastructure
 
-```bash
-dotnet run --project src/MX.TripSideKick.Web
-```
+Open a pull request against `main`. Required checks and test conventions are
+listed in [AGENTS.md](../AGENTS.md); workflow definitions specify their
+current triggers. Hosted Development and legacy Azure deployment workflows
+are disabled. Image publication and digest-only promotion do not activate the
+host; see [runtime delivery](workload-consolidation.md#local-development-and-validation).
 
-`Properties/launchSettings.json` supplies the local host-routing allow lists, because in Azure the
-same values arrive as App Service settings:
-
-| URL | Surface |
-| --- | --- |
-| `https://localhost:7207` | app surface — React PWA + `/v1` API |
-| `http://127.0.0.1:5207` | site surface — Razor Pages brochure |
-| `https://app.localhost:7207` | app surface (named alias) |
-| `https://site.localhost:7207` | site surface (named alias) |
-
-Any other `Host` header returns `400 Unrecognised host.` — that is the host-routing gate doing its
-job, not a bug.
-
-For a hot-reloading client, run `npm run dev` alongside `dotnet run` and browse to
-`http://localhost:5173`; the Vite dev server proxies `/v1` and `/api` to the ASP.NET Core host.
-
-### Local backing services
-
-```bash
-docker compose up -d      # SQL Server 2022 on localhost:1433, Azurite blob on localhost:10000
-docker compose down -v    # tear down including volumes
-```
-
-Neither service is required by the app today — the walking skeleton starts and reports healthy with
-no SQL connection string and no blob endpoint.
-
-## Terraform
-
-```bash
-cd terraform
-terraform fmt -check -recursive
-terraform init -lockfile=readonly -backend=false
-terraform validate
-```
-
-A real `plan`/`apply` needs Azure OIDC credentials and the Cloudflare token, so it only runs in CI.
-
-## Branch strategy and CI/CD
-
-* Work on a branch (`feature/**`, `bugfix/**`, `hotfix/**`, `agents/**`) and open a PR into `main`.
-* `main` is protected. Required status checks: `dependabot-policy`, `SonarCloud Code Analysis`,
-  `build-and-test`, `quality / Code Quality`, `devops-secure-scanning / DevOps Secure Scanning`.
-
-| Workflow | Trigger | What it does |
-| --- | --- | --- |
-| `build-and-test.yml` | push to `feature/**`, `bugfix/**`, `hotfix/**`, `agents/**` | Client tests, .NET build/test/format, dev Terraform plan when `terraform/**` changed |
-| `pr-verify.yml` | pull request | `build-and-test` job (required check) plus label-driven Terraform jobs |
-| `codequality.yml` | PR, push to `main`, Monday 08:30 UTC | SonarCloud analysis, DevOps secure scanning, dependency review |
-| `dependabot-automerge.yml` | pull request | `dependabot-policy` required check; auto-merges approved-bot PRs after required checks pass |
-| `deploy-dev.yml` | manual | Full build → Terraform apply → App Service deploy to Development |
-| `deploy-prd.yml` | push to `main`, manual, Thursday 05:00 UTC | Development then Production apply + deploy |
-| `destroy-development.yml` | daily 23:55 UTC, manual | Tears the Development environment down overnight, including its B1 plan, then verifies the workload resource group is empty |
-| `destroy-environment.yml` | manual | Targeted teardown of `dev` or `prd`; the dev path performs the same post-destroy inventory verification |
-
-### PR labels
-
-| Label | Effect |
-| --- | --- |
-| *(none)* | Terraform **plan** against Development |
-| `deploy-dev` | Terraform **plan + apply** against Development, then deploy the App Service and wait for `/info` to report the built version |
-| `run-prd-plan` | Terraform **plan** against Production |
-
-`destroy-development.yml` runs nightly, so a Development environment created by a `deploy-dev` label
-is expected to disappear overnight. Development owns its Linux B1 plan and has no
-`platform-hosting` remote-state dependency; Production remains on the shared production plan.
-The destroy workflows remove the exact Application Insights `Failure Anomalies` smart-detector
-residue, then fail and print residual Azure resource IDs if the Development resource group is not
-empty or the plan still exists. Re-apply the label (or re-run `deploy-dev.yml`) to bring it back.
-
-## Conventions worth knowing
-
-* **Warnings are errors** (`TreatWarningsAsErrors`, `CodeAnalysisTreatWarningsAsErrors`). Analyzer
-  severities live in `.editorconfig`.
-* **LF line endings everywhere** (`.gitattributes` + `.editorconfig`). `dotnet format` fails on CRLF.
-* **Versioning** is Nerdbank.GitVersioning (`version.json`); the build version is surfaced at `/info`
-  and in the brochure footer.
-* Test fully-qualified names must **not** contain `IntegrationTests` unless they are genuinely
-  expensive — the shared CI action filters that string out of `dotnet test`.
-# Current delivery workflow
-
-Use [the constrained runtime guide](workload-consolidation.md) for PostgreSQL18
-local development, CI and immutable image promotion. Hosted dev and automatic/
-scheduled Azure deployment are disabled; legacy `deploy-dev` PR labels no longer
-apply or deploy anything. Terraform destroy/identity/vault definitions remain for
-coordinated retirement. Azure delivery descriptions below are historical only.
+For offline Terraform validation use `terraform fmt -check -recursive`,
+`terraform init -lockfile=readonly -backend=false` and `terraform validate`
+from `terraform/`. Do not plan or mutate real state without an explicit
+operation. The reviewed Runtime Infrastructure workflow handles Production
+plans and manual approved-main apply.

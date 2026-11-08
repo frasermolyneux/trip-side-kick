@@ -41,17 +41,18 @@ Existing database passwords are never implicitly
 rotated. An unchanged reviewed configuration creates no new secret version.
 Trusted Caddy addresses are resolved and injected only by the host.
 
-The credential workflow checks weekly on Monday at 06:10 UTC and can also be
-dispatched manually. Certificate checks renew 180-day Entra certificates within
-30 days of expiry.
+The credential workflow runs on the schedule in `bootstrap-runtime.yml` and can
+also be dispatched manually. Its renewal thresholds are defined in the workflow
+and bootstrap script.
 Unrelated public keys and unexpired previous certificates are retained;
 only this workflow's expired keys are eligible for removal after seven days.
 
-Caddy manages the public origin certificates automatically. After the platform
-change is deployed and the four hosts are confirmed working over HTTPS, the
-operator can remove the obsolete `origin-tls` vault secret and its no-longer-used
-Cloudflare Origin CA certificate. The separate Origin CA API token and GitHub
-secret are addressed by the platform-workloads change, not by this workflow.
+Caddy manages the public origin certificates automatically. Deletion of the
+obsolete `origin-tls` vault secret has been reported; verify its status if
+needed. Revocation of the old Cloudflare Origin CA certificate has not been
+verified. Confirm its status separately and retain the HTTPS acceptance gate
+before any further certificate cleanup. The separate Origin CA API token and
+GitHub secret are outside this workflow.
 
 Missing established credentials, unexpected ownership, disabled secrets,
 expiring database passwords or changed
