@@ -10,8 +10,8 @@ using MX.TripSideKick.Web.Controllers.V1;
 namespace MX.TripSideKick.Web.Tests.Integration;
 
 /// <summary>
-/// Real-EF-Core-over-SQL-Server coverage of Journey 1 + the trip-content half of Journey 2's role
-/// matrix, using a Testcontainers SQL Server instance (see <see cref="SqlServerContainerFixture"/>).
+/// PostgreSQL coverage of the trip lifecycle and role matrix using
+/// <see cref="SqlServerContainerFixture"/> (which retains its legacy name).
 /// </summary>
 [Collection(SqlServerTestGroup.Name)]
 public sealed class TripLifecycleIntegrationTests : IDisposable

@@ -1,17 +1,16 @@
 # Constrained runtime migration
 
-The application targets the existing `ns346663` constrained runtime: .NET 10 Razor
+The application targets the existing `ns346663` constrained runtime: a Razor
 brochure (`tripsidekick.net`) and React PWA/BFF (`tripsidekick.app`), with a dedicated
-PostgreSQL 18 database. No hosted Development environment is introduced.
+PostgreSQL database. There is no hosted Development environment.
 
-**Deployment is not authorized by this source change.** `workload.json` contains
+**Deployment requires separate authorization.** `workload.json` contains
 deliberately nonexistent zero digests. Publication and a digest-only promotion PR
 must precede separately reviewed host activation. Public routing, the platform's
 `platform-ingress` network mapping, secrets, certificates, backups, DNS, registry
 permissions, and legacy retirement remain platform/operator responsibilities.
-No Terraform resources or state are removed or changed here; destroy workflows
-and retained Entra/vault definitions remain available for coordinated retirement.
-Legacy Azure apply/deploy workflows now fail closed on manual dispatch and have
+Destroy workflows and retained Entra/vault definitions remain available for
+coordinated retirement. Legacy Azure apply/deploy workflows fail closed on manual dispatch and have
 no schedule or automatic triggers. Development destruction is manual-only; its
 capability and Terraform definitions are retained. PR labels cannot re-enable
 legacy deployments.
@@ -94,9 +93,8 @@ is a database owner, not a superuser, role creator or replication user. Bootstra
 reuses the password secret but does not permit remote administrative login.
 Password rotation is a separate operator action, never an application deployment.
 
-The protected main-only credential workflow checks weekly on Monday at 06:10 UTC,
-with manual dispatch retained. Entra certificates renew only within 30 days of
-expiry. Existing database passwords, completed schema-initialization state and
+The protected main-only credential workflow has a scheduled check and manual
+dispatch. Existing database passwords, completed schema-initialization state and
 unrelated/unexpired Entra credentials
 are retained; missing established credentials fail closed rather than resetting
 the runtime. This job does not deploy images or retire Azure resources.
@@ -164,7 +162,7 @@ The compose password is disposable local-only data. Local Development may run
 without a database for deterministic empty-repository tests, but readiness is
 then unhealthy. Never select `Development` or enable `TestAuth` on a public host.
 
-Integration tests start disposable PostgreSQL 18 via Testcontainers, or accept
+Integration tests start disposable PostgreSQL via Testcontainers, or accept
 `TRIPSIDEKICK_TEST_POSTGRES` pointing **only to a disposable CI database**. The
 fixture applies real migrations twice. Existing lifecycle, ETag, itinerary,
 membership and invitation tests now exercise PostgreSQL; focused provider tests

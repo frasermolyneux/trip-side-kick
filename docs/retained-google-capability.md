@@ -6,8 +6,8 @@ key, restricted to those two APIs and the four exact Trip apex/www HTTPS origins
 Both APIs have destruction protection and `disable_on_destroy=false`.
 Development has no Google resources; its Azure stack was verified empty first.
 
-The reviewed provider dependency update adds Google 8.8 without upgrading existing
-providers. Production PR plans use federated Google auth and redacted output only.
+Provider selections are recorded in `terraform/.terraform.lock.hcl`.
+Production PR plans use federated Google auth and redacted output only.
 Approved-main apply preserves the generated ADC file by disabling nested checkout.
 No project, billing, bootstrap IAM, old key or old trust is removed here.
 

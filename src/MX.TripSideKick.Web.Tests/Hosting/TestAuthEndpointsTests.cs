@@ -83,13 +83,8 @@ public sealed class TestAuthEndpointsTests : IClassFixture<TripSideKickApplicati
     [Fact]
     public async Task Signin_endpoint_is_unreachable_when_running_as_an_Azure_App_Service_instance_even_when_enabled_in_Development()
     {
-        // The dev App Service slot actually runs ASPNETCORE_ENVIRONMENT=Development (see
-        // terraform/web_app.tf - "dev" there means the pre-production deployment slot, not the
-        // ASP.NET Core hosting environment), so IsDevelopment() alone cannot be trusted to keep
-        // this endpoint off a real, internet-reachable App Service instance. This test proves the
-        // WEBSITE_INSTANCE_ID gate - the setting Azure App Service always injects, which Terraform
-        // never sets - independently keeps the endpoint unmapped even when both the environment is
-        // Development and TestAuth:Enabled is true.
+        // The legacy App Service guard remains effective even with Development and
+        // TestAuth enabled. It is not a general detector for all deployed hosts.
         using var appServiceFactory = factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(Environments.Development);

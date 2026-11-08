@@ -4,7 +4,7 @@ namespace MX.TripSideKick.Web.Hosting;
 /// The public surface a request was addressed to.
 /// </summary>
 /// <remarks>
-/// A single App Service deployment serves two distinct products:
+/// A single web host serves two distinct products:
 /// <list type="bullet">
 ///   <item><description><see cref="Site"/> — the <c>tripsidekick.net</c> Razor Pages brochure site.</description></item>
 ///   <item><description><see cref="App"/> — the <c>tripsidekick.app</c> React PWA and versioned <c>/v1</c> API/BFF.</description></item>

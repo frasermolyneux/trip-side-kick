@@ -92,8 +92,7 @@ builder.Services
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"))
     // Forces the authorization-code + PKCE response type (ResponseType=code) instead of
     // Microsoft.Identity.Web's sign-in-only default (implicit id_token). Without this, no code is
-    // ever redeemed at the token endpoint, so the managed-identity federated credential configured
-    // via AzureAd:ClientCredentials (see terraform/identity.tf) would never actually be exercised.
+    // ever redeemed at the token endpoint, so the configured client certificate would not be used.
     // The in-memory cache holds the resulting tokens server-side only; nothing reaches the cookie
     // (SaveTokens = false below) or the browser.
     .EnableTokenAcquisitionToCallDownstreamApi()
@@ -211,8 +210,7 @@ if (args.Contains("--initialize-database", StringComparer.Ordinal)
     }
 }
 
-// Must run first: App Service terminates TLS, so Request.Scheme is only correct after the forwarded
-// headers are applied. HSTS and HTTPS redirection both short-circuit on a non-HTTPS scheme.
+// Apply trusted forwarded headers before middleware that relies on the request scheme.
 app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
@@ -263,8 +261,7 @@ app.UseAuthorization();
 var siteHosts = app.Services.SiteHosts();
 var appHosts = app.Services.AppHosts();
 
-// Operational endpoints are intentionally reachable on every configured host so that App Service
-// health probes and the deployment version gate keep working regardless of surface.
+// Operational endpoints are reachable on every configured host, regardless of surface.
 app.MapHealthChecks("/api/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
 {
@@ -282,8 +279,7 @@ app.MapOpenApi("/swagger/{documentName}/openapi.json").RequireHost(appHosts);
 
 // Deterministic sign-in for hermetic Playwright/E2E tests only - see TestAuthEndpoints' remarks
 // for the fail-closed gating (Development environment + explicit TestAuth:Enabled opt-in + not
-// running as an Azure App Service instance). MapTestAuthEndpoints itself is a no-op unless every
-// condition holds, so this line never adds a reachable route in a deployed environment.
+// running as an Azure App Service instance). Never enable it on a public host.
 app.MapTestAuthEndpoints(app.Environment, app.Configuration, appHosts);
 
 app.MapFallbackToFile("index.html").RequireHost(appHosts);
