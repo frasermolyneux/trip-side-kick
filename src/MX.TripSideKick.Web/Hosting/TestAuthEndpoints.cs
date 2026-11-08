@@ -25,22 +25,10 @@ namespace MX.TripSideKick.Web.Hosting;
 /// Terraform never sets and cannot be unset while hosted there, is absent).</item>
 /// </list>
 /// <para>
-/// The third gate exists because <c>ASPNETCORE_ENVIRONMENT=Development</c> is <em>not</em> a
-/// reliable deployed-environment signal on its own: <c>terraform/web_app.tf</c> sets
-/// <c>ASPNETCORE_ENVIRONMENT</c> to <c>Development</c> (not <c>Production</c>) for the <c>dev</c>
-/// App Service slot - "dev" there means the pre-production deployment environment, not the
-/// ASP.NET Core hosting environment name. That makes <see cref="IWebHostEnvironment.IsDevelopment"/>
-/// true on a real, internet-reachable, custom-domain-bound App Service, so it is only the
-/// <c>TestAuth:Enabled</c> flag (never set by Terraform for either <c>dev</c> or <c>prd</c>) standing
-/// between that slot and an authentication bypass. The <c>WEBSITE_INSTANCE_ID</c> check restores a
-/// second, genuinely independent barrier: it is always present when the app is hosted in Azure App
-/// Service (dev or prd) regardless of <c>ASPNETCORE_ENVIRONMENT</c>, and always absent for a local
-/// developer run, CI job, or the Playwright harness's spawned child process. This is proved by
-/// <c>MX.TripSideKick.Web.Tests.Hosting.TestAuthEndpointsTests</c>: when any condition doesn't hold,
-/// this method never maps the endpoint, so the request falls through to the app's SPA fallback
-/// route (<c>index.html</c>, HTTP 200) rather than the sign-in handler above - the fail-closed
-/// guarantee is that <em>no cookie is issued and the caller stays anonymous</em> (<c>/v1/auth/me</c>
-/// reports <c>isAuthenticated: false</c>), not a literal 404.
+/// Never enable test authentication on a public host. The App Service instance check
+/// is an additional legacy safeguard, not a way to detect every deployed environment.
+/// When any condition fails, no sign-in endpoint is mapped and no cookie is issued.
+/// Production is excluded regardless of whether <c>WEBSITE_INSTANCE_ID</c> is set.
 /// </para>
 /// <para>
 /// On success, it signs the caller in via the <em>same</em> cookie authentication scheme

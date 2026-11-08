@@ -15,7 +15,7 @@
   "services": [
     {
       "name": "trip-side-kick-web",
-      "image": "acr7ca0fd3326df.azurecr.io/workloads/trip-side-kick/web@sha256:c17230c9c9551f49ef787fa6d6e1d01b8e9bd45315e6b180b14b71216452fb6d",
+      "image": "acr7ca0fd3326df.azurecr.io/workloads/trip-side-kick/web@sha256:d1e45d8b10aa55f4109f937905dda9b831e076972044ba4ebf509d68d7bb0254",
       "runAs": "1654:1654",
       "environment": {
         "ASPNETCORE_ENVIRONMENT": "Production",
@@ -74,7 +74,7 @@
     },
     {
       "name": "trip-side-kick-postgres",
-      "image": "acr7ca0fd3326df.azurecr.io/workloads/trip-side-kick/postgres@sha256:2024072c2a8c0572cf4d5a7f306a28ab133c67bd6f40fcfd928ab4b6bdc80e0e",
+      "image": "acr7ca0fd3326df.azurecr.io/workloads/trip-side-kick/postgres@sha256:d59e6d929204845a8e881699474e2b8cbd96adbde329db545cf35716c5350819",
       "runAs": "999:1654",
       "networks": [
         "database"

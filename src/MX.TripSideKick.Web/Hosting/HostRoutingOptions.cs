@@ -4,9 +4,8 @@ namespace MX.TripSideKick.Web.Hosting;
 /// Configures the host-aware split between the brochure site and the application surface.
 /// </summary>
 /// <remarks>
-/// Populated from the <c>HostRouting</c> configuration section. In Azure the values are supplied as
-/// App Service application settings by Terraform (<c>HostRouting__SiteHosts__0</c> etc.) and always
-/// include the App Service default hostname so platform probes and deployment verification keep working.
+/// Populated from the <c>HostRouting</c> configuration section. Runtime settings
+/// and local launch profiles supply the hostnames for their respective environments.
 /// </remarks>
 public sealed class HostRoutingOptions
 {

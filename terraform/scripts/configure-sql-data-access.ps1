@@ -5,16 +5,9 @@
     App Service's data-access user-assigned managed identity and (optionally) applies EF Core migrations.
 
 .DESCRIPTION
-    Runs as a discrete CI step (not a Terraform provisioner), mirroring
-    terraform/scripts/configure-external-id-sign-up.sh:
-      1. The azurerm/azuread Terraform providers never open a SQL connection - "CREATE USER ..."
-         is T-SQL, not an ARM/Graph operation, so it cannot be a Terraform resource.
-      2. The shared terraform-plan-and-apply composite authenticates only the Terraform providers
-         via ARM_* OIDC env vars; it never leaves behind a usable SQL/Graph token. This script
-         therefore runs after its own `azure/login`, using the same federated workload identity
-         (no secrets - see standards.oidc-and-secrets) - which is also the SQL server's Entra admin
-         (see terraform/sql.tf), so it is authorized to both create the contained user AND apply
-         migrations.
+    Legacy Azure SQL helper, not invoked by current deployment workflows. The current
+    application uses PostgreSQL; its migrations must not be used with this script.
+    Retained only for separately reviewed legacy operations.
 
     Two operations, both idempotent/re-runnable:
       A. Ensure a contained database user exists for -ManagedIdentityName (the App Service's dedicated
@@ -30,18 +23,17 @@
          possibly start serving traffic.
 
 .PARAMETER SqlServerFqdn
-    Fully-qualified domain name of the Azure SQL logical server (terraform output
-    sql_server_fully_qualified_domain_name).
+    Fully-qualified domain name of the legacy Azure SQL logical server.
 
 .PARAMETER SqlDatabaseName
-    Database name (terraform output sql_database_name).
+    Legacy database name.
 
 .PARAMETER ManagedIdentityName
-    Name of the user-assigned managed identity to grant data access to (terraform output
-    sql_data_identity_name). Used verbatim as the contained database user name.
+    Name of the legacy user-assigned managed identity. Used verbatim as the
+    contained database user name.
 
 .PARAMETER ManagedIdentityClientId
-    Client (application) ID of that managed identity (terraform output sql_data_identity_client_id).
+    Client (application) ID of that managed identity.
     Converted to a binary SID so the contained user is created by SID
     (`CREATE USER [name] WITH SID = <sid>, TYPE = E`) rather than `FROM EXTERNAL PROVIDER` - the latter
     needs the SQL server's identity to hold the Entra "Directory Readers" role, which this workload
@@ -132,8 +124,7 @@ $sid = '0x' + (($identityGuid.ToByteArray() | ForEach-Object { $_.ToString('X2')
 $nameLiteral = $ManagedIdentityName.Replace("'", "''")
 $nameIdent = $ManagedIdentityName.Replace("]", "]]")
 
-# The workload service principal is the SQL server's Entra admin (azuread_administrator block in
-# terraform/sql.tf), so this connection is authorized to create users and apply schema changes.
+# The caller must be authorized to create users and apply schema changes.
 # Creating the user by SID (WITH SID = ..., TYPE = E) rather than FROM EXTERNAL PROVIDER means the SQL
 # server identity never needs the Entra "Directory Readers" role.
 $createUserSql = @"
