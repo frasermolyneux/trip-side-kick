@@ -43,7 +43,7 @@
     <!-- Transitive Microsoft.OpenApi 2.0.0 carries GHSA-v5pm-xwqc-g5wc; pin to a patched build. -->
     <PackageReference Include="Microsoft.OpenApi" Version="2.13.0" />
     <PackageReference Include="MX.Observability.ApplicationInsights.AspNetCore" Version="1.1.33" />
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>
